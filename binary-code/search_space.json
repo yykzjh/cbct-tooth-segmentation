@@ -1,0 +1,7 @@
+{
+    "learning_rate": {"_type": "choice", "_value": [0.01, 0.005, 0.001, 0.0005, 0.0001, 0.00005, 0.00001]},
+    "weight_decay": {"_type": "choice", "_value": [0.001, 0.0005, 0.0001, 0.00005, 0.00001, 0.000005, 0.000001]},
+    "update_weight_freq": {"_type": "choice", "_value": [4, 16, 32, 64]}
+}
+
+
