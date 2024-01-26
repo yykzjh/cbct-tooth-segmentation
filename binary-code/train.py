@@ -96,7 +96,7 @@ params = {
 
     "dataset_path": r"./datasets/NC-release-data-full",  # 数据集路径
 
-    "create_data": True,  # 是否重新分割子卷训练集
+    "create_data": False,  # 是否重新分割子卷训练集
 
     "batch_size": 1,  # batch_size大小
 
