@@ -18,7 +18,7 @@ def get_dataloader(opt):
         opt: 参数字典
     Returns:
     """
-    if opt["dataset_name"] == "BINARY_TOOTH_FULL":
+    if opt["dataset_name"] == "BINARY-TOOTH-FULL":
         # 初始化数据集
         train_set = BinaryToothDataset(opt, mode="train")
         valid_set = BinaryToothDataset(opt, mode="valid")
@@ -42,7 +42,7 @@ def get_test_dataloader(opt):
     :param opt: 参数字典
     :return:
     """
-    if opt["dataset_name"] == "BinaryToothDataset":
+    if opt["dataset_name"] == "BINARY-TOOTH-FULL":
         # 初始化数据集
         valid_set = BinaryToothDataset(opt, mode="valid")
 
