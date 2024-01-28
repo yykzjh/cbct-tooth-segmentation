@@ -229,6 +229,19 @@ if __name__ == '__main__':
     metric = metrics.get_metric(params)
     print("完成初始化评价指标")
 
+    # 创建训练执行目录和文件
+    if not params["optimize_params"]:
+        if params["resume"] is None:
+            params["execute_dir"] = os.path.join(params["run_dir"], utils.datestr() + "_" + params["model_name"] + "_" + params["dataset_name"])
+        else:
+            params["execute_dir"] = os.path.dirname(os.path.dirname(params["resume"]))
+        params["checkpoint_dir"] = os.path.join(params["execute_dir"], "checkpoints")
+        params["tensorboard_dir"] = os.path.join(params["execute_dir"], "board")
+        params["log_txt_path"] = os.path.join(params["execute_dir"], "log.txt")
+        if params["resume"] is None:
+            utils.make_dirs(params["checkpoint_dir"])
+            utils.make_dirs(params["tensorboard_dir"])
+
     # 初始化训练器
     trainer = trainers.Trainer(params, train_loader, valid_loader, model, optimizer, lr_scheduler, loss_function, metric)
 

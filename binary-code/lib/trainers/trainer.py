@@ -31,16 +31,10 @@ class Trainer:
 
         if not self.opt["optimize_params"]:
             # 创建训练执行目录和文件
-            if self.opt["resume"] is None:
-                self.execute_dir = os.path.join(opt["run_dir"], utils.datestr() + "_" + opt["model_name"] + "_" + opt["dataset_name"])
-            else:
-                self.execute_dir = os.path.dirname(os.path.dirname(self.opt["resume"]))
-            self.checkpoint_dir = os.path.join(self.execute_dir, "checkpoints")
-            self.tensorboard_dir = os.path.join(self.execute_dir, "board")
-            self.log_txt_path = os.path.join(self.execute_dir, "log.txt")
-            if self.opt["resume"] is None:
-                utils.make_dirs(self.checkpoint_dir)
-                utils.make_dirs(self.tensorboard_dir)
+            self.execute_dir = self.opt["execute_dir"]
+            self.checkpoint_dir = self.opt["checkpoint_dir"]
+            self.tensorboard_dir = self.opt["tensorboard_dir"]
+            self.log_txt_path = self.opt["log_txt_path"]
             self.writer = SummaryWriter(log_dir=self.tensorboard_dir, purge_step=0, max_queue=1, flush_secs=30)
 
         # 训练时需要用到的参数
