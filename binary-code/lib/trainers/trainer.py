@@ -186,17 +186,17 @@ class Trainer:
             # 计算当前epoch验证集的dsc
             cur_dsc = self.statistics_dict["valid"]["DSC"] / self.statistics_dict["valid"]["count"]
 
-            # 按照一定周期固定保存模型和训练状态部分
-            if (not self.opt["optimize_params"]) and (epoch + 1) % self.save_epoch_freq == 0:
-                self.save(epoch, cur_dsc, self.best_dsc, type="normal")
-            if not self.opt["optimize_params"]:
-                # 每次都保存最新的latest
-                self.save(epoch, cur_dsc, self.best_dsc, type="latest")
             # 与最优结果进行比较，保存最优的模型
             if cur_dsc > self.best_dsc:
                 self.best_dsc = cur_dsc
                 if not self.opt["optimize_params"]:
                     self.save(epoch, cur_dsc, self.best_dsc, type="best")
+            # 按照一定周期固定保存模型和训练状态部分
+            if (not self.opt["optimize_params"]) and (epoch + 1) % self.save_epoch_freq == 0:
+                self.save(epoch, cur_dsc, self.best_dsc, type="normal")
+            # 每次都保存最新的latest
+            if not self.opt["optimize_params"]:
+                self.save(epoch, cur_dsc, self.best_dsc, type="latest")
 
     def write_statistcs(self, mode="step", iter=None):
         """
