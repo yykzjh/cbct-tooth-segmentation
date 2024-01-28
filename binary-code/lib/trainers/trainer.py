@@ -41,6 +41,7 @@ class Trainer:
         self.start_epoch = self.opt["start_epoch"]
         self.end_epoch = self.opt["end_epoch"]
         self.best_dsc = opt["best_dsc"]
+        self.best_metrics = np.zeros((len(self.opt["metric_names"])))
         self.update_weight_freq = opt["update_weight_freq"]
         self.terminal_show_freq = opt["terminal_show_freq"]
         self.save_epoch_freq = opt["save_epoch_freq"]
@@ -111,6 +112,14 @@ class Trainer:
             # 关闭tensorboard
             time.sleep(60)
             self.writer.close()
+            # 保存最优的一组结果
+            results_str = "\n"
+            for i, metric_name in enumerate(self.opt["metric_names"]):
+                results_str += metric_name + ": " + str(self.best_metrics[i])
+                if i < 4:
+                    results_str += ",  "
+            print(results_str)
+            utils.pre_write_txt(results_str, self.log_txt_path)
 
     def train_epoch(self, epoch):
 
@@ -189,6 +198,13 @@ class Trainer:
             # 与最优结果进行比较，保存最优的模型
             if cur_dsc > self.best_dsc:
                 self.best_dsc = cur_dsc
+                self.best_metrics = np.array([
+                    self.statistics_dict["valid"]["HD"] / self.statistics_dict["valid"]["count"],
+                    self.statistics_dict["valid"]["ASSD"] / self.statistics_dict["valid"]["count"],
+                    self.statistics_dict["valid"]["IoU"] / self.statistics_dict["valid"]["count"],
+                    self.statistics_dict["valid"]["SO"] / self.statistics_dict["valid"]["count"],
+                    self.statistics_dict["valid"]["DSC"] / self.statistics_dict["valid"]["count"]
+                ])
                 if not self.opt["optimize_params"]:
                     self.save(epoch, cur_dsc, self.best_dsc, type="best")
             # 按照一定周期固定保存模型和训练状态部分
@@ -353,6 +369,7 @@ class Trainer:
         state = {
             "epoch": epoch,
             "best_metric": best_metric,
+            "best_metrics": self.best_metrics,
             "optimizer": self.optimizer.state_dict(),
             "lr_scheduler": self.lr_scheduler.state_dict()
         }
@@ -386,6 +403,7 @@ class Trainer:
             self.start_epoch = resume_state_dict["epoch"] + 1
             # 加载当前最优评价指标
             self.best_dsc = resume_state_dict["best_metric"]
+            self.best_metrics = resume_state_dict["best_metrics"]
             # 加载优化器参数
             self.optimizer.load_state_dict(resume_state_dict["optimizer"])
             # 加载学习率调度器参数
