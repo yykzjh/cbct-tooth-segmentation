@@ -125,7 +125,7 @@ params = {
 
     "optimizer_name": "AdamW",  # 优化器名称，可选["SGD", "Adagrad", "RMSprop", "Adam", "AdamW", "Adamax", "Adadelta"]
 
-    "learning_rate": 0.005,  # 学习率
+    "learning_rate": 0.01,  # 学习率
 
     "weight_decay": 0.00005,  # 权重衰减系数,即更新网络参数时的L2正则化项的系数
 
