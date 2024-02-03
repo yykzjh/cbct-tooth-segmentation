@@ -28,6 +28,7 @@ from functools import reduce
 from nibabel.viewers import OrthoSlicer3D
 import SimpleITK as sitk
 from proplot import rc
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 import proplot as pplt
@@ -661,8 +662,55 @@ def generate_three_views(image_path):
     three_views_image_img.save(r"./images/three_views/three_views_image.jpg")
 
 
+def generate_surface_labels(src_root_dir):
+    # 初始化目录结构
+    src_labels_dir = os.path.join(src_root_dir, "labels")
+    dst_labels_dir = os.path.join(src_root_dir, "surface_labels")
+    if os.path.exists(dst_labels_dir):
+        shutil.rmtree(dst_labels_dir)
+    os.makedirs(dst_labels_dir)
+    # 遍历所有labels
+    for label_name in tqdm(os.listdir(src_labels_dir)):
+        # 读取
+        label_path = os.path.join(src_labels_dir, label_name)
+        label = sitk.ReadImage(label_path)
+        spacing = label.GetSpacing()
+        direction = label.GetDirection()
+        origin = label.GetOrigin()
+        label_np = sitk.GetArrayFromImage(label)
+        d, w, h = label_np.shape
+        label_np[label_np > 0] = 1
+        preprocessed_label = sitk.GetImageFromArray(label_np)
+        preprocessed_label.SetSpacing(spacing)
+        preprocessed_label.SetDirection(direction)
+        preprocessed_label.SetOrigin(origin)
+
+        # 获取变脸轮廓边界点
+        surface_label = sitk.LabelContour(preprocessed_label)
+        surface_label.SetSpacing(spacing)
+        surface_label.SetDirection(direction)
+        surface_label.SetOrigin(origin)
+
+        # 保存
+        sitk.WriteImage(surface_label, os.path.join(dst_labels_dir, label_name))
+
+        # plt.imshow(label_np[d//2, :, :], cmap="gray")
+        # plt.show()
+        # surface_label = sitk.GetArrayFromImage(surface_label)
+        # plt.imshow(surface_label[d // 2, :, :], cmap="gray")
+        # plt.show()
+        # break
+
+
+
+
+
+
+
+
+
 if __name__ == '__main__':
-    load_nii_file(r"./datasets/NC-release-data-full/train/images/1001484858_20150118.nii.gz")
+    # load_nii_file(r"./datasets/NC-release-data-full/train/images/1001484858_20150118.nii.gz")
 
     # load_obj_file(r"./datasets/Teeth3DS/training/upper/0EAKT1CU/0EAKT1CU_upper.obj")
 
@@ -698,3 +746,6 @@ if __name__ == '__main__':
 
     # 生成三视图
     # generate_three_views(r"./datasets/NC-release-data-full/train/images/1001152328_20180112.nii.gz")
+
+    # 生成表面轮廓标注图像数据集
+    generate_surface_labels(r"./datasets/NC-release-data-full/valid")
