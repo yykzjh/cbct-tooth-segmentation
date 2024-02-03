@@ -38,6 +38,20 @@ import lib.utils as utils
 import lib.models as models
 
 
+def calc_grayhist(image, max_length=255):
+    # 无论多少维数组都展成一维
+    image_flatten = image.flatten()
+    image_flatten = np.array(image_flatten, dtype=np.int32)
+    # plt.hist(image_flatten, bins=max_length+1, color="g", histtype="bar", rwidth=1, alpha=0.6)
+    # plt.show()
+    # print(image_flatten.shape[0])
+    # 求出像素值0~max_length的统计直方图
+    grayhist = np.bincount(image_flatten)
+    # 归一化直方图
+    grayhist = grayhist / image_flatten.shape[0]
+    return grayhist
+
+
 def load_nii_file(file_path):
     """
     底层读取.nii.gz文件
@@ -48,11 +62,53 @@ def load_nii_file(file_path):
     Returns: uint16格式的三维numpy数组, spacing三个元素的元组
 
     """
-    image_np, spacing = utils.load_nii_file(file_path)
-
+    # 读取图像数据
+    image_np, spacing = utils.load_image(file_path)
+    print("spacing: ", spacing)
+    # 转换维度
+    image_np = np.transpose(image_np, (2, 1, 0))
+    image_np = image_np[::-1, :, :]
+    image_np = image_np - image_np.min()
     print(image_np.min(), image_np.max())
-    print(spacing)
 
+    # 显示直方图
+    plt.hist(image_np.flatten(), bins=1000, range=(1, 10000))
+    plt.show()
+
+    T = 2880
+    mask = np.zeros_like(image_np).astype(np.uint8)
+    mask[image_np > T] = 255
+    OrthoSlicer3D(mask).show()
+    coronal_MIP_image = np.max(mask, axis=1)
+    plt.imshow(coronal_MIP_image, cmap="gray")
+    plt.show()
+
+    # 获取3D图像的高斯分布阈值
+    hist = calc_grayhist(image_np)
+    # 把像素值为0的频率去掉
+    hist[0] = 0
+    print("3D图像分割阈值：", T)
+    plt.hist(image_np.flatten(), bins=1000, range=(1, 10000), color="g", histtype="bar", rwidth=1, alpha=0.6)
+    plt.axvline(T)
+    plt.show()
+
+    # # 最大强度投影
+    # coronal_MIP_image = np.max(image_np, axis=1)
+    # coronal_MIP_image = coronal_MIP_image - coronal_MIP_image.min()
+    # print(coronal_MIP_image.min(), coronal_MIP_image.max())
+    # # 展示结果
+    # plt.imshow(coronal_MIP_image, cmap="gray")
+    # plt.show()
+    #
+    # # 显示直方图
+    # plt.hist(coronal_MIP_image.flatten(), bins=1000, range=(1, 7000))
+    # plt.show()
+    #
+    # T = 1260
+    # mask = np.zeros_like(coronal_MIP_image).astype(np.uint8)
+    # mask[coronal_MIP_image > T] = 255
+    # plt.imshow(mask, cmap="gray")
+    # plt.show()
 
 
 def load_obj_file(file_path):
@@ -488,13 +544,11 @@ def generate_segmented_sample_image(scale=1):
 
 
 def generate_bubble_image():
-
     def circle_area_func(x, p=75, k=150):
         return np.where(x < p, (np.sqrt(x / p) * p) * k, x * k)
 
     def inverse_circle_area_func(x, p=75, k=150):
         return np.where(x < p * k, (((x / k) / p) ** 2) * p, x / k)
-
 
     rc["font.family"] = "Times New Roman"
     rc["axes.labelsize"] = 36
@@ -523,7 +577,7 @@ def generate_bubble_image():
 
     # 添加文字
     for i in range(len(FLOPs)):
-        ax.annotate(model_names[i], xy=(FLOPs[i], values[i]), xytext=(xtext_positions[i], ytext_positions[i]), fontsize=32, fontweight=(200 if i < (len(FLOPs)-1) else 600))
+        ax.annotate(model_names[i], xy=(FLOPs[i], values[i]), xytext=(xtext_positions[i], ytext_positions[i]), fontsize=32, fontweight=(200 if i < (len(FLOPs) - 1) else 600))
     for i, legend_size in enumerate(legend_sizes):
         ax.text(legend_xpositions[i], legend_yposition, str(legend_size) + "M", fontsize=32, fontweight=200)
 
@@ -531,7 +585,8 @@ def generate_bubble_image():
     kw = dict(prop="sizes", num=legend_sizes, color="#e6e6e6", fmt="{x:.0f}", linewidth=None, markeredgewidth=3, markeredgecolor="white", func=lambda s: np.ceil(inverse_circle_area_func(s, p=p, k=k)))
     legend = ax.legend(*pubble.legend_elements(**kw), bbox_to_anchor=(0.7, 0.15), title="Parameters (Params) / M", ncol=6, fontsize=0, title_fontsize=0, handletextpad=90, frameon=False)
 
-    ax.set(xlim=(0, 2900), ylim=(45, 90), xticks=np.arange(0, 2900, step=300), yticks=np.arange(45, 90, step=5), xlabel="Floating-point Operations Per Second (FLOPs) / GFLOPs", ylabel="Intersection over Union (IoU) / %")
+    ax.set(xlim=(0, 2900), ylim=(45, 90), xticks=np.arange(0, 2900, step=300), yticks=np.arange(45, 90, step=5), xlabel="Floating-point Operations Per Second (FLOPs) / GFLOPs",
+           ylabel="Intersection over Union (IoU) / %")
 
     fig.tight_layout()
     fig.savefig("./3D_CBCT_Tooth_bubble_image.jpg", bbox_inches='tight', dpi=300)
@@ -571,9 +626,9 @@ def generate_three_views(image_path):
     print(image.shape)
     h, d, w = image.shape
     # 获取三视图
-    sagittal_plane = image[:, :, w//2]
+    sagittal_plane = image[:, :, w // 2]
     coronal_plane = image[:, 90, :]
-    axial_plane = image[h//2, :, :]
+    axial_plane = image[h // 2, :, :]
     plt.imshow(sagittal_plane, cmap="gray")
     plt.show()
     plt.imshow(coronal_plane, cmap="gray")
@@ -606,13 +661,8 @@ def generate_three_views(image_path):
     three_views_image_img.save(r"./images/three_views/three_views_image.jpg")
 
 
-
-
-
-
 if __name__ == '__main__':
-
-    # load_nii_file(r"./datasets/NC-release-data-full/valid/labels/Teeth_0011_0000.nii.gz")
+    load_nii_file(r"./datasets/NC-release-data-full/train/images/1001484858_20150118.nii.gz")
 
     # load_obj_file(r"./datasets/Teeth3DS/training/upper/0EAKT1CU/0EAKT1CU_upper.obj")
 
@@ -622,7 +672,7 @@ if __name__ == '__main__':
     # analyse_image_label_consistency(r"./datasets/NC-release-data")
 
     # 分析数据集的Clip上下界、均值和方差
-    analyse_dataset(dataset_dir=r"./datasets/NC-release-data-full", resample_spacing=[0.5, 0.5, 0.5], clip_lower_bound_ratio=1e-6, clip_upper_bound_ratio=1-1e-7)
+    # analyse_dataset(dataset_dir=r"./datasets/NC-release-data-full", resample_spacing=[0.5, 0.5, 0.5], clip_lower_bound_ratio=1e-6, clip_upper_bound_ratio=1-1e-7)
 
     # 统计所有网络模型的参数量
     # count_all_models_parameters(["DenseVNet", "UNet3D", "VNet", "AttentionUNet3D", "R2UNet", "R2AttentionUNet", "HighResNet3D", "DenseVoxelNet", "MultiResUNet3D", "DenseASPPUNet", "PMFSNet", "UNETR",
