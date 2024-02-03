@@ -642,6 +642,42 @@ def generate_three_views(image_path):
     three_views_image_img.save(r"./images/three_views/three_views_image.jpg")
 
 
+def generate_surface_labels(src_root_dir):
+    # 初始化目录结构
+    src_labels_dir = os.path.join(src_root_dir, "labels")
+    dst_labels_dir = os.path.join(src_root_dir, "surface_labels")
+    if os.path.exists(dst_labels_dir):
+        shutil.rmtree(dst_labels_dir)
+    os.makedirs(dst_labels_dir)
+    # 遍历所有labels
+    for label_name in tqdm(os.listdir(src_labels_dir)):
+        # 读取
+        label_path = os.path.join(src_labels_dir, label_name)
+        label_np, spacing = utils.load_label(label_path, index_to_class_dict=index_to_class_dict)
+        label_np = np.transpose(label_np, (2, 1, 0))
+        d, w, h = label_np.shape
+        label = sitk.GetImageFromArray(label_np)
+        label.SetSpacing(spacing)
+
+        # 获取变脸轮廓边界点
+        surface_label = sitk.LabelContour(label)
+        surface_label.SetSpacing(spacing)
+
+        # 保存
+        sitk.WriteImage(surface_label, os.path.join(dst_labels_dir, label_name))
+
+        # plt.imshow(label_np[d//2, :, :], cmap="gray")
+        # plt.show()
+        # surface_label_np = sitk.GetArrayFromImage(surface_label)
+        # plt.imshow(surface_label_np[d // 2, :, :], cmap="gray")
+        # plt.show()
+        # OrthoSlicer3D(label_np).show()
+        # OrthoSlicer3D(surface_label_np).show()
+        # print(np.unique(label_np))
+        # print(np.unique(surface_label_np))
+        # break
+
+
 if __name__ == '__main__':
     # load_nii_file(r"./datasets/NC-release-data-full/valid/labels/Teeth_0011_0000.nii.gz")
 
@@ -653,7 +689,7 @@ if __name__ == '__main__':
     # analyse_image_label_consistency(r"./datasets/NC-release-data")
 
     # 分析数据集的Clip上下界、均值和方差
-    analyse_dataset(dataset_dir=r"./datasets/HX-multi-class-10", resample_spacing=[0.5, 0.5, 0.5], clip_lower_bound_ratio=1e-6, clip_upper_bound_ratio=1 - 1e-7, classes=35)
+    # analyse_dataset(dataset_dir=r"./datasets/HX-multi-class-10", resample_spacing=[0.5, 0.5, 0.5], clip_lower_bound_ratio=1e-6, clip_upper_bound_ratio=1 - 1e-7, classes=35)
 
     # 统计所有网络模型的参数量
     # count_all_models_parameters(["DenseVNet", "UNet3D", "VNet", "AttentionUNet3D", "R2UNet", "R2AttentionUNet", "HighResNet3D", "DenseVoxelNet", "MultiResUNet3D", "DenseASPPUNet", "PMFSNet", "UNETR",
@@ -679,3 +715,6 @@ if __name__ == '__main__':
 
     # 生成三视图
     # generate_three_views(r"./datasets/NC-release-data-full/train/images/1001152328_20180112.nii.gz")
+
+    # 生成表面轮廓标注图像数据集
+    generate_surface_labels(r"./datasets/HX-multi-class-10")

@@ -696,8 +696,8 @@ def generate_surface_labels(src_root_dir):
 
         # plt.imshow(label_np[d//2, :, :], cmap="gray")
         # plt.show()
-        # surface_label = sitk.GetArrayFromImage(surface_label)
-        # plt.imshow(surface_label[d // 2, :, :], cmap="gray")
+        # surface_label_np = sitk.GetArrayFromImage(surface_label)
+        # plt.imshow(surface_label_np[d // 2, :, :], cmap="gray")
         # plt.show()
         # break
 
