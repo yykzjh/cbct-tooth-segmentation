@@ -21,11 +21,13 @@ from .HighResNet3D import HighResNet3D
 from .DenseVoxelNet import DenseVoxelNet
 from .MultiResUNet3D import MultiResUNet3D
 from .DenseASPPUNet import DenseASPPUNet
+from .UNETR import UNETR
+from .SwinUNETR import SwinUNETR
 from .TransBTS import BTS
 from lib.models.nnFormer.nnFormer_seg import nnFormer
 from lib.models.UXNet_3D.network_backbone import UXNET
 from monai.networks.nets import AttentionUnet
-from monai.networks.nets import UNETR, SwinUNETR
+
 
 from .PMFSNet import PMFSNet
 
