@@ -100,7 +100,7 @@ def find_non_zero_labels_mask(label_map, th_percent, crop_size, crop_point):
         return False
 
 
-def load_image_or_label(path, resample_spacing, type=None, index_to_class_dict=None):
+def load_image_or_label(path, resample_spacing, type=None, index_to_class_dict=None, order=None):
     """
     加载原始图像或者标注图像，进行重采样处理
 
@@ -109,6 +109,7 @@ def load_image_or_label(path, resample_spacing, type=None, index_to_class_dict=N
         resample_spacing: 重采样的体素间距
         type: 原始图像、原图像标注图像
         index_to_class_dict: 索引和类别的映射字典
+        order: 插值算法
 
     Returns:
 
@@ -121,7 +122,11 @@ def load_image_or_label(path, resample_spacing, type=None, index_to_class_dict=N
         img_np, spacing = load_image(path)
 
     # 定义插值算法
-    order = 0 if type == "label" else 3
+    if order is None:
+        if type == "label":
+            order = 0
+        else:
+            order = 3
     # 重采样
     img_np = resample_image_spacing(img_np, spacing, resample_spacing, order)
 
@@ -247,6 +252,25 @@ def crop_img(img_np, crop_size, crop_point):
         return img_np.unsqueeze(0)
 
     return img_np
+
+
+def generate_heatmap_label(x, y, z, point_x, point_y, point_z, sigma=5):
+    """
+    根据关键点坐标生成3D热力图标注图像
+    """
+    X_points = np.linspace(0, x - 1, x)
+    Y_points = np.linspace(0, y - 1, y)
+    Z_points = np.linspace(0, z - 1, z)
+    [X, Y, Z] = np.meshgrid(X_points, Y_points, Z_points)
+    X = X - point_x
+    Y = Y - point_y
+    Z = Z - point_z
+    D2 = X * X + Y * Y + Z * Z
+    E2 = 2.0 * sigma * sigma
+    Exponent = D2 / E2
+    heatmap = np.exp(-Exponent)
+    heatmap[heatmap < 1e-6] = 0
+    return heatmap
 
 
 if __name__ == '__main__':

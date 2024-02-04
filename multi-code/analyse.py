@@ -651,6 +651,7 @@ def generate_surface_labels(src_root_dir):
     os.makedirs(dst_labels_dir)
     # 遍历所有labels
     for label_name in tqdm(os.listdir(src_labels_dir)):
+        file_name = label_name.split(".")[0]
         # 读取
         label_path = os.path.join(src_labels_dir, label_name)
         label_np, spacing = utils.load_label(label_path, index_to_class_dict=index_to_class_dict)
@@ -664,7 +665,7 @@ def generate_surface_labels(src_root_dir):
         surface_label.SetSpacing(spacing)
 
         # 保存
-        sitk.WriteImage(surface_label, os.path.join(dst_labels_dir, label_name))
+        sitk.WriteImage(surface_label, os.path.join(dst_labels_dir, file_name + ".nii.gz"))
 
         # plt.imshow(label_np[d//2, :, :], cmap="gray")
         # plt.show()
@@ -676,6 +677,65 @@ def generate_surface_labels(src_root_dir):
         # print(np.unique(label_np))
         # print(np.unique(surface_label_np))
         # break
+
+
+def generate_keypoint_heatmap_labels(src_root_dir):
+    # 初始化目录结构
+    src_labels_dir = os.path.join(src_root_dir, "labels")
+    Centroid_labels_dir = os.path.join(src_root_dir, "centroid_labels")
+    if os.path.exists(Centroid_labels_dir):
+        shutil.rmtree(Centroid_labels_dir)
+    os.makedirs(Centroid_labels_dir)
+    # 遍历所有labels
+    # for label_name in tqdm(os.listdir(src_labels_dir)):
+    for label_name in tqdm(os.listdir(src_labels_dir)):
+        # 划分文件名和扩展名
+        file_name, ext = os.path.splitext(label_name)
+        # 读取
+        label_path = os.path.join(src_labels_dir, label_name)
+        label_np = utils.load_image_or_label(label_path, [0.5, 0.5, 0.5], type="label", index_to_class_dict=index_to_class_dict)
+        label_np = np.transpose(label_np, (2, 1, 0))
+        d, w, h = label_np.shape
+        label = sitk.GetImageFromArray(label_np)
+        # 获取原始label中存在的所有类别标签值
+        label_values = np.unique(label_np)
+        # 创建统计字典
+        statistic_dict = {val: None for val in range(2, 35)}
+        # 由于连通区域分析只能传入二值化图像，所以每个类别单独处理
+        for label_value in range(2, 35):
+            # 获取当前类别的二值化图像
+            binary_label_np = (label_np == label_value).astype(np.uint8)
+            if np.sum(binary_label_np) == 0:  # 没有该类别直接跳过
+                continue
+            binary_label = sitk.GetImageFromArray(binary_label_np)
+            # 连通区域分析
+            cc_label = sitk.ConnectedComponent(binary_label)
+            stats = sitk.LabelIntensityStatisticsImageFilter()
+            stats.Execute(cc_label, binary_label)
+            # 遍历所有连通区域
+            for cc_label_value in stats.GetLabels():
+                # 获取当前连通区域的统计数据
+                area = stats.GetPhysicalSize(cc_label_value)
+                centroid = stats.GetCentroid(cc_label_value)
+                # 更新统计字典
+                if (statistic_dict[label_value] is None) or (area > statistic_dict[label_value]["area"]):
+                    statistic_dict[label_value] = {
+                        "area": area,
+                        "centroid": centroid
+                    }
+        # 初始化热力图信息
+        heatmap_str = " ".join([str(val) for val in [h, w, d]]) + "\n"
+        # 每个通道依次构造热力图
+        for label_value in range(2, 35):
+            dict_data = statistic_dict[label_value]
+            if dict_data is None:
+                heatmap_str += " ".join(["0", "0", "0"]) + "\n"
+            else:
+                heatmap_str += " ".join([str(val) for val in dict_data["centroid"]]) + "\n"
+        # 保存
+        txt_file_path = os.path.join(Centroid_labels_dir, file_name + ".txt")
+        utils.pre_write_txt(heatmap_str, txt_file_path)
+
 
 
 if __name__ == '__main__':
@@ -717,4 +777,7 @@ if __name__ == '__main__':
     # generate_three_views(r"./datasets/NC-release-data-full/train/images/1001152328_20180112.nii.gz")
 
     # 生成表面轮廓标注图像数据集
-    generate_surface_labels(r"./datasets/HX-multi-class-10")
+    # generate_surface_labels(r"./datasets/HX-multi-class-10")
+
+    # 生成关键点热力图标注数据集
+    generate_keypoint_heatmap_labels(r"./datasets/HX-multi-class-10")
