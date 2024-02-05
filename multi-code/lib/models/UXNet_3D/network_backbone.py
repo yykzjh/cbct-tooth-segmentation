@@ -5,9 +5,14 @@ Created on Sun Apr 10 15:04:06 2022
 
 @author: leeh43
 """
+import os
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../"))
 
 from typing import Tuple
 
+import torch
 import torch.nn as nn
 
 from monai.networks.blocks.dynunet_block import UnetOutBlock
@@ -17,10 +22,12 @@ import torch.nn.functional as F
 from lib.models.UXNet_3D.module_helper import ModuleHelper
 from lib.models.UXNet_3D.uxnet_encoder import uxnet_conv
 
+from lib.models.modules.GlobalPMFSBlock import GlobalPMFSBlock_AP_Separate
+
+
 class ProjectionHead(nn.Module):
     def __init__(self, dim_in, proj_dim=256, proj='convmlp', bn_type='torchbn'):
         super(ProjectionHead, self).__init__()
-
 
         if proj == 'linear':
             self.proj = nn.Conv2d(dim_in, proj_dim, kernel_size=1)
@@ -89,18 +96,19 @@ class ProjectionHead(nn.Module):
 class UXNET(nn.Module):
 
     def __init__(
-        self,
-        in_chans=1,
-        out_chans=13,
-        depths=[2, 2, 2, 2],
-        feat_size=[48, 96, 192, 384],
-        drop_path_rate=0,
-        layer_scale_init_value=1e-6,
-        hidden_size: int = 768,
-        norm_name: Union[Tuple, str] = "instance",
-        conv_block: bool = True,
-        res_block: bool = True,
-        spatial_dims=3,
+            self,
+            in_chans=1,
+            out_chans=13,
+            depths=[2, 2, 2, 2],
+            feat_size=[48, 96, 192, 384],
+            drop_path_rate=0,
+            layer_scale_init_value=1e-6,
+            hidden_size: int = 768,
+            norm_name: Union[Tuple, str] = "instance",
+            conv_block: bool = True,
+            res_block: bool = True,
+            spatial_dims=3,
+            with_pmfs_block=False
     ) -> None:
         """
         Args:
@@ -160,7 +168,7 @@ class UXNET(nn.Module):
         #     spatial_dims=spatial_dims,
         # )
         self.uxnet_3d = uxnet_conv(
-            in_chans= self.in_chans,
+            in_chans=self.in_chans,
             depths=self.depths,
             dims=self.feat_size,
             drop_path_rate=self.drop_path_rate,
@@ -214,6 +222,18 @@ class UXNET(nn.Module):
             res_block=res_block,
         )
 
+        self.with_pmfs_block = with_pmfs_block
+        if with_pmfs_block:
+            self.global_pmfs_block = GlobalPMFSBlock_AP_Separate(
+                in_channels=[48, 96, 192, 384, 768],
+                max_pool_kernels=[16, 8, 4, 2, 1],
+                ch=48,
+                ch_k=48,
+                ch_v=48,
+                br=5,
+                dim="3d"
+            )
+
         self.decoder5 = UnetrUpBlock(
             spatial_dims=spatial_dims,
             in_channels=self.hidden_size,
@@ -262,14 +282,13 @@ class UXNET(nn.Module):
         self.out = UnetOutBlock(spatial_dims=spatial_dims, in_channels=48, out_channels=self.out_chans)
         # self.conv_proj = ProjectionHead(dim_in=hidden_size)
 
-
     def proj_feat(self, x, hidden_size, feat_size):
         new_view = (x.size(0), *feat_size, hidden_size)
         x = x.view(new_view)
         new_axes = (0, len(x.shape) - 1) + tuple(d + 1 for d in range(len(feat_size)))
         x = x.permute(new_axes).contiguous()
         return x
-    
+
     def forward(self, x_in):
         outs = self.uxnet_3d(x_in)
         # print(outs[0].size())
@@ -289,12 +308,39 @@ class UXNET(nn.Module):
         # print(enc4.size())
         # dec4 = self.proj_feat(outs[3], self.hidden_size, self.feat_size)
         enc_hidden = self.encoder5(outs[3])
+
+        if self.with_pmfs_block:
+            enc_hidden = self.global_pmfs_block([enc1, enc2, enc3, enc4, enc_hidden])
+
         dec3 = self.decoder5(enc_hidden, enc4)
         dec2 = self.decoder4(dec3, enc3)
         dec1 = self.decoder3(dec2, enc2)
         dec0 = self.decoder2(dec1, enc1)
         out = self.decoder1(dec0)
-        
+
         # feat = self.conv_proj(dec4)
-        
+
         return self.out(out)
+
+
+if __name__ == '__main__':
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
+
+    x = torch.randn((1, 1, 32, 32, 32)).to(device)
+
+    model = UXNET(
+            in_chans=1,
+            out_chans=35,
+            depths=[2, 2, 2, 2],
+            feat_size=[48, 96, 192, 384],
+            drop_path_rate=0,
+            layer_scale_init_value=1e-6,
+            spatial_dims=3,
+            with_pmfs_block=True
+        ).to(device)
+
+    output = model(x)
+
+    print(x.size())
+    print(output.size())

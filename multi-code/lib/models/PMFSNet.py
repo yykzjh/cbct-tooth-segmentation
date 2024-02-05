@@ -22,7 +22,8 @@ from lib.models.modules.GlobalPMFSBlock import GlobalPMFSBlock_AP_Separate
 class PMFSNet(nn.Module):
     def __init__(self, in_channels=1, out_channels=35, dim="3d", scaling_version="TINY",
                  basic_module=DownSampleWithLocalPMFSBlock,
-                 global_module=GlobalPMFSBlock_AP_Separate):
+                 global_module=GlobalPMFSBlock_AP_Separate,
+                 with_pmfs_block=True):
         super(PMFSNet, self).__init__()
 
         self.scaling_version = scaling_version
@@ -71,15 +72,17 @@ class PMFSNet(nn.Module):
                 )
             )
 
-        self.Global = global_module(
-            in_channels=downsample_channels,
-            max_pool_kernels=[4, 2, 1],
-            ch=pmfs_ch,
-            ch_k=pmfs_ch,
-            ch_v=pmfs_ch,
-            br=3,
-            dim=dim
-        )
+        self.with_pmfs_block = with_pmfs_block
+        if with_pmfs_block:
+            self.Global = global_module(
+                in_channels=downsample_channels,
+                max_pool_kernels=[4, 2, 1],
+                ch=pmfs_ch,
+                ch_k=pmfs_ch,
+                ch_v=pmfs_ch,
+                br=3,
+                dim=dim
+            )
 
         if scaling_version == "BASIC":
             self.up2 = torch.nn.Upsample(scale_factor=2, mode=upsample_mode)
@@ -132,7 +135,10 @@ class PMFSNet(nn.Module):
             x2, x2_skip = self.down_convs[1](x1)
             x3 = self.down_convs[2](x2)
 
-            d3 = self.Global([x1, x2, x3])
+            if self.with_pmfs_block:
+                d3 = self.Global([x1, x2, x3])
+            else:
+                d3 = x3
 
             d2 = self.up2(d3)
             d2 = torch.cat((x2_skip, d2), dim=1)
@@ -148,8 +154,9 @@ class PMFSNet(nn.Module):
             x2, skip2 = self.down_convs[1](x1)
             x3, skip3 = self.down_convs[2](x2)
 
-            x3 = self.Global([x1, x2, x3])
-            skip3 = self.bottle_conv(torch.cat([x3, skip3], dim=1))
+            if self.with_pmfs_block:
+                x3 = self.Global([x1, x2, x3])
+                skip3 = self.bottle_conv(torch.cat([x3, skip3], dim=1))
 
             skip2 = self.upsample_1(skip2)
             skip3 = self.upsample_2(skip3)
@@ -160,27 +167,35 @@ class PMFSNet(nn.Module):
         return out
 
 
-
-
-
 if __name__ == '__main__':
-
-    def count_parameters(model):
-        return sum(p.numel() for p in model.parameters() if p.requires_grad) / 1e6
+    # def count_parameters(model):
+    #     return sum(p.numel() for p in model.parameters() if p.requires_grad) / 1e6
+    #
+    # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # dims = ["3d", "2d"]
+    # channels = [1, 3]
+    #
+    # scaling_versions = ["BASIC", "SMALL", "TINY"]
+    #
+    # xs = [torch.randn((1, 1, 160, 160, 96)).to(device), torch.randn((1, 3, 224, 224)).to(device)]
+    #
+    # for i, dim in enumerate(dims):
+    #     for scaling_version in scaling_versions:
+    #         model = PMFSNet(in_channels=channels[i], out_channels=2, dim=dim, scaling_version=scaling_version).to(device)
+    #         y = model(xs[i])
+    #         print(dim + "-" + scaling_version, ":")
+    #         print(xs[i].size())
+    #         print(y.size())
+    #         print("params: {:.6f}M".format(count_parameters(model)))
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    dims = ["3d", "2d"]
-    channels = [1, 3]
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
 
-    scaling_versions = ["BASIC", "SMALL", "TINY"]
+    x = torch.randn((1, 1, 32, 32, 32)).to(device)
 
-    xs = [torch.randn((1, 1, 160, 160, 96)).to(device), torch.randn((1, 3, 224, 224)).to(device)]
+    model = PMFSNet(in_channels=1, out_channels=35, dim="3d", scaling_version="TINY", with_pmfs_block=True).to(device)
 
-    for i, dim in enumerate(dims):
-        for scaling_version in scaling_versions:
-            model = PMFSNet(in_channels=channels[i], out_channels=2, dim=dim, scaling_version=scaling_version).to(device)
-            y = model(xs[i])
-            print(dim + "-" + scaling_version, ":")
-            print(xs[i].size())
-            print(y.size())
-            print("params: {:.6f}M".format(count_parameters(model)))
+    output = model(x)
+
+    print(x.size())
+    print(output.size())

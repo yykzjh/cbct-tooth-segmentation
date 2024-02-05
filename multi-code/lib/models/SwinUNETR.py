@@ -11,6 +11,11 @@ from __future__ import annotations
 import itertools
 from collections.abc import Sequence
 
+import os
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../"))
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -24,6 +29,8 @@ from monai.networks.blocks import PatchEmbed, UnetOutBlock, UnetrBasicBlock, Une
 from monai.networks.layers import DropPath, trunc_normal_
 from monai.utils import ensure_tuple_rep, look_up_option, optional_import
 from monai.utils.deprecate_utils import deprecated_arg
+
+from lib.models.modules.GlobalPMFSBlock import GlobalPMFSBlock_AP_Separate
 
 rearrange, _ = optional_import("einops", name="rearrange")
 
@@ -55,25 +62,26 @@ class SwinUNETR(nn.Module):
         since="1.3",
         removed="1.5",
         msg_suffix="The img_size argument is not required anymore and "
-        "checks on the input size are run during forward().",
+                   "checks on the input size are run during forward().",
     )
     def __init__(
-        self,
-        img_size: Sequence[int] | int,
-        in_channels: int,
-        out_channels: int,
-        depths: Sequence[int] = (2, 2, 2, 2),
-        num_heads: Sequence[int] = (3, 6, 12, 24),
-        feature_size: int = 24,
-        norm_name: tuple | str = "instance",
-        drop_rate: float = 0.0,
-        attn_drop_rate: float = 0.0,
-        dropout_path_rate: float = 0.0,
-        normalize: bool = True,
-        use_checkpoint: bool = False,
-        spatial_dims: int = 3,
-        downsample="merging",
-        use_v2=False,
+            self,
+            img_size: Sequence[int] | int,
+            in_channels: int,
+            out_channels: int,
+            depths: Sequence[int] = (2, 2, 2, 2),
+            num_heads: Sequence[int] = (3, 6, 12, 24),
+            feature_size: int = 24,
+            norm_name: tuple | str = "instance",
+            drop_rate: float = 0.0,
+            attn_drop_rate: float = 0.0,
+            dropout_path_rate: float = 0.0,
+            normalize: bool = True,
+            use_checkpoint: bool = False,
+            spatial_dims: int = 3,
+            downsample="merging",
+            use_v2=False,
+            with_pmfs_block=False
     ) -> None:
         """
         Args:
@@ -205,6 +213,18 @@ class SwinUNETR(nn.Module):
             res_block=True,
         )
 
+        self.with_pmfs_block = with_pmfs_block
+        if with_pmfs_block:
+            self.global_pmfs_block = GlobalPMFSBlock_AP_Separate(
+                in_channels=[48, 96, 192],
+                max_pool_kernels=[4, 2, 1],
+                ch=48,
+                ch_k=48,
+                ch_v=48,
+                br=3,
+                dim="3d"
+            )
+
         self.decoder5 = UnetrUpBlock(
             spatial_dims=spatial_dims,
             in_channels=16 * feature_size,
@@ -324,6 +344,10 @@ class SwinUNETR(nn.Module):
         enc1 = self.encoder2(hidden_states_out[0])
         enc2 = self.encoder3(hidden_states_out[1])
         enc3 = self.encoder4(hidden_states_out[2])
+
+        if self.with_pmfs_block:
+            enc3 = self.global_pmfs_block([enc1, enc2, enc3])
+
         dec4 = self.encoder10(hidden_states_out[4])
         dec3 = self.decoder5(dec4, hidden_states_out[3])
         dec2 = self.decoder4(dec3, enc3)
@@ -435,13 +459,13 @@ class WindowAttention(nn.Module):
     """
 
     def __init__(
-        self,
-        dim: int,
-        num_heads: int,
-        window_size: Sequence[int],
-        qkv_bias: bool = False,
-        attn_drop: float = 0.0,
-        proj_drop: float = 0.0,
+            self,
+            dim: int,
+            num_heads: int,
+            window_size: Sequence[int],
+            qkv_bias: bool = False,
+            attn_drop: float = 0.0,
+            proj_drop: float = 0.0,
     ) -> None:
         """
         Args:
@@ -458,7 +482,7 @@ class WindowAttention(nn.Module):
         self.window_size = window_size
         self.num_heads = num_heads
         head_dim = dim // num_heads
-        self.scale = head_dim**-0.5
+        self.scale = head_dim ** -0.5
         mesh_args = torch.meshgrid.__kwdefaults__
 
         if len(self.window_size) == 3:
@@ -544,19 +568,19 @@ class SwinTransformerBlock(nn.Module):
     """
 
     def __init__(
-        self,
-        dim: int,
-        num_heads: int,
-        window_size: Sequence[int],
-        shift_size: Sequence[int],
-        mlp_ratio: float = 4.0,
-        qkv_bias: bool = True,
-        drop: float = 0.0,
-        attn_drop: float = 0.0,
-        drop_path: float = 0.0,
-        act_layer: str = "GELU",
-        norm_layer: type[LayerNorm] = nn.LayerNorm,
-        use_checkpoint: bool = False,
+            self,
+            dim: int,
+            num_heads: int,
+            window_size: Sequence[int],
+            shift_size: Sequence[int],
+            mlp_ratio: float = 4.0,
+            qkv_bias: bool = True,
+            drop: float = 0.0,
+            attn_drop: float = 0.0,
+            drop_path: float = 0.0,
+            act_layer: str = "GELU",
+            norm_layer: type[LayerNorm] = nn.LayerNorm,
+            use_checkpoint: bool = False,
     ) -> None:
         """
         Args:
@@ -828,19 +852,19 @@ class BasicLayer(nn.Module):
     """
 
     def __init__(
-        self,
-        dim: int,
-        depth: int,
-        num_heads: int,
-        window_size: Sequence[int],
-        drop_path: list,
-        mlp_ratio: float = 4.0,
-        qkv_bias: bool = False,
-        drop: float = 0.0,
-        attn_drop: float = 0.0,
-        norm_layer: type[LayerNorm] = nn.LayerNorm,
-        downsample: nn.Module | None = None,
-        use_checkpoint: bool = False,
+            self,
+            dim: int,
+            depth: int,
+            num_heads: int,
+            window_size: Sequence[int],
+            drop_path: list,
+            mlp_ratio: float = 4.0,
+            qkv_bias: bool = False,
+            drop: float = 0.0,
+            attn_drop: float = 0.0,
+            norm_layer: type[LayerNorm] = nn.LayerNorm,
+            downsample: nn.Module | None = None,
+            use_checkpoint: bool = False,
     ) -> None:
         """
         Args:
@@ -928,24 +952,24 @@ class SwinTransformer(nn.Module):
     """
 
     def __init__(
-        self,
-        in_chans: int,
-        embed_dim: int,
-        window_size: Sequence[int],
-        patch_size: Sequence[int],
-        depths: Sequence[int],
-        num_heads: Sequence[int],
-        mlp_ratio: float = 4.0,
-        qkv_bias: bool = True,
-        drop_rate: float = 0.0,
-        attn_drop_rate: float = 0.0,
-        drop_path_rate: float = 0.0,
-        norm_layer: type[LayerNorm] = nn.LayerNorm,
-        patch_norm: bool = False,
-        use_checkpoint: bool = False,
-        spatial_dims: int = 3,
-        downsample="merging",
-        use_v2=False,
+            self,
+            in_chans: int,
+            embed_dim: int,
+            window_size: Sequence[int],
+            patch_size: Sequence[int],
+            depths: Sequence[int],
+            num_heads: Sequence[int],
+            mlp_ratio: float = 4.0,
+            qkv_bias: bool = True,
+            drop_rate: float = 0.0,
+            attn_drop_rate: float = 0.0,
+            drop_path_rate: float = 0.0,
+            norm_layer: type[LayerNorm] = nn.LayerNorm,
+            patch_norm: bool = False,
+            use_checkpoint: bool = False,
+            spatial_dims: int = 3,
+            downsample="merging",
+            use_v2=False,
     ) -> None:
         """
         Args:
@@ -998,11 +1022,11 @@ class SwinTransformer(nn.Module):
         down_sample_mod = look_up_option(downsample, MERGING_MODE) if isinstance(downsample, str) else downsample
         for i_layer in range(self.num_layers):
             layer = BasicLayer(
-                dim=int(embed_dim * 2**i_layer),
+                dim=int(embed_dim * 2 ** i_layer),
                 depth=depths[i_layer],
                 num_heads=num_heads[i_layer],
                 window_size=self.window_size,
-                drop_path=dpr[sum(depths[:i_layer]) : sum(depths[: i_layer + 1])],
+                drop_path=dpr[sum(depths[:i_layer]): sum(depths[: i_layer + 1])],
                 mlp_ratio=mlp_ratio,
                 qkv_bias=qkv_bias,
                 drop=drop_rate,
@@ -1022,8 +1046,8 @@ class SwinTransformer(nn.Module):
             if self.use_v2:
                 layerc = UnetrBasicBlock(
                     spatial_dims=3,
-                    in_channels=embed_dim * 2**i_layer,
-                    out_channels=embed_dim * 2**i_layer,
+                    in_channels=embed_dim * 2 ** i_layer,
+                    out_channels=embed_dim * 2 ** i_layer,
                     kernel_size=3,
                     stride=1,
                     norm_name="instance",
@@ -1125,3 +1149,22 @@ def filter_swinunetr(key, value):
         return new_key, value
     else:
         return None
+
+
+if __name__ == '__main__':
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
+
+    x = torch.randn((1, 1, 64, 64, 64)).to(device)
+
+    model = SwinUNETR(img_size=(64, 64, 64),
+                      in_channels=1,
+                      out_channels=35,
+                      feature_size=48,
+                      use_checkpoint=False,
+                      with_pmfs_block=True).to(device)
+
+    output = model(x)
+
+    print(x.size())
+    print(output.size())

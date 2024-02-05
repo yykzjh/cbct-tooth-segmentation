@@ -17,6 +17,8 @@ from lib.models.modules.Transformer import TransformerModel
 from lib.models.modules.PositionalEncoding import FixedPositionalEncoding, LearnedPositionalEncoding
 from lib.models.modules.Unet_skipconnection import Unet
 
+from lib.models.modules.GlobalPMFSBlock import GlobalPMFSBlock_AP_Separate
+
 
 class TransformerBTS(nn.Module):
     def __init__(
@@ -178,6 +180,7 @@ class BTS(TransformerBTS):
             attn_dropout_rate=0.0,
             conv_patch_representation=True,
             positional_encoding_type="learned",
+            with_pmfs_block=False
     ):
         super(BTS, self).__init__(
             img_dim=img_dim,
@@ -211,7 +214,22 @@ class BTS(TransformerBTS):
 
         self.endconv = nn.Conv3d(self.embedding_dim // 32, num_classes, kernel_size=1)
 
+        self.with_pmfs_block = with_pmfs_block
+        if with_pmfs_block:
+            self.global_pmfs_block = GlobalPMFSBlock_AP_Separate(
+                in_channels=[16, 32, 64],
+                max_pool_kernels=[4, 2, 1],
+                ch=48,
+                ch_k=48,
+                ch_v=48,
+                br=3,
+                dim="3d"
+            )
+
     def decode(self, x1_1, x2_1, x3_1, x, intmd_x, intmd_layers=[1, 2, 3, 4]):
+        if self.with_pmfs_block:
+            x3_1 = self.global_pmfs_block([x1_1, x2_1, x3_1])
+
         assert intmd_layers is not None, "pass the intermediate layers for MLA"
         encoder_outputs = {}
         all_keys = []
@@ -352,9 +370,12 @@ def TransBTS(dataset='brats', _conv_repr=True, _pe_type="learned"):
 
 
 if __name__ == '__main__':
-    x = torch.rand((1, 1, 160, 160, 96))
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
 
-    model = BTS(img_dim=(160, 160, 96), patch_dim=8, num_channels=1, num_classes=2,
+    x = torch.randn((1, 1, 32, 32, 32)).to(device)
+
+    model = BTS(img_dim=(32, 32, 32), patch_dim=8, num_channels=1, num_classes=35,
                 embedding_dim=512,
                 num_heads=8,
                 num_layers=4,
@@ -363,8 +384,10 @@ if __name__ == '__main__':
                 attn_dropout_rate=0.1,
                 conv_patch_representation=True,
                 positional_encoding_type="learned",
-                )
+                with_pmfs_block=True
+                ).to(device)
 
-    y = model(x)
+    output = model(x)
+
     print(x.size())
-    print(y.size())
+    print(output.size())

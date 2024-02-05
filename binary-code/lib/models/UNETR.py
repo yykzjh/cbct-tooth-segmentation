@@ -10,12 +10,20 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+import os
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../"))
+
+import torch
 import torch.nn as nn
 
 from monai.networks.blocks.dynunet_block import UnetOutBlock
 from monai.networks.blocks.unetr_block import UnetrBasicBlock, UnetrPrUpBlock, UnetrUpBlock
 from monai.networks.nets.vit import ViT
 from monai.utils import deprecated_arg, ensure_tuple_rep
+
+from lib.models.modules.GlobalPMFSBlock import GlobalPMFSBlock_AP_Separate
 
 
 class UNETR(nn.Module):
@@ -28,23 +36,24 @@ class UNETR(nn.Module):
         name="pos_embed", since="1.2", removed="1.4", new_name="proj_type", msg_suffix="please use `proj_type` instead."
     )
     def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        img_size: Sequence[int] | int,
-        feature_size: int = 16,
-        hidden_size: int = 768,
-        mlp_dim: int = 3072,
-        num_heads: int = 12,
-        pos_embed: str = "conv",
-        proj_type: str = "conv",
-        norm_name: tuple | str = "instance",
-        conv_block: bool = True,
-        res_block: bool = True,
-        dropout_rate: float = 0.0,
-        spatial_dims: int = 3,
-        qkv_bias: bool = False,
-        save_attn: bool = False,
+            self,
+            in_channels: int,
+            out_channels: int,
+            img_size: Sequence[int] | int,
+            feature_size: int = 16,
+            hidden_size: int = 768,
+            mlp_dim: int = 3072,
+            num_heads: int = 12,
+            pos_embed: str = "conv",
+            proj_type: str = "conv",
+            norm_name: tuple | str = "instance",
+            conv_block: bool = True,
+            res_block: bool = True,
+            dropout_rate: float = 0.0,
+            spatial_dims: int = 3,
+            qkv_bias: bool = False,
+            save_attn: bool = False,
+            with_pmfs_block=False
     ) -> None:
         """
         Args:
@@ -154,6 +163,19 @@ class UNETR(nn.Module):
             conv_block=conv_block,
             res_block=res_block,
         )
+
+        self.with_pmfs_block = with_pmfs_block
+        if with_pmfs_block:
+            self.global_pmfs_block = GlobalPMFSBlock_AP_Separate(
+                in_channels=[16, 32, 64, 128],
+                max_pool_kernels=[8, 4, 2, 1],
+                ch=48,
+                ch_k=48,
+                ch_v=48,
+                br=4,
+                dim="3d"
+            )
+
         self.decoder5 = UnetrUpBlock(
             spatial_dims=spatial_dims,
             in_channels=hidden_size,
@@ -209,9 +231,38 @@ class UNETR(nn.Module):
         enc3 = self.encoder3(self.proj_feat(x3))
         x4 = hidden_states_out[9]
         enc4 = self.encoder4(self.proj_feat(x4))
+
+        if self.with_pmfs_block:
+            enc4 = self.global_pmfs_block([enc1, enc2, enc3, enc4])
+
         dec4 = self.proj_feat(x)
         dec3 = self.decoder5(dec4, enc4)
         dec2 = self.decoder4(dec3, enc3)
         dec1 = self.decoder3(dec2, enc2)
         out = self.decoder2(dec1, enc1)
         return self.out(out)
+
+
+if __name__ == '__main__':
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
+
+    x = torch.randn((1, 1, 32, 32, 32)).to(device)
+
+    model = UNETR(in_channels=1,
+                  out_channels=35,
+                  img_size=(32, 32, 32),
+                  feature_size=16,
+                  hidden_size=768,
+                  mlp_dim=3072,
+                  num_heads=12,
+                  pos_embed="perceptron",
+                  norm_name="instance",
+                  res_block=True,
+                  dropout_rate=0.0,
+                  with_pmfs_block=True).to(device)
+
+    output = model(x)
+
+    print(x.size())
+    print(output.size())

@@ -111,6 +111,8 @@ params = {
 
     "classes": 2,  # 模型最后输出的通道数,即类别总数
 
+    "with_pmfs_block": False,  # 加不加PMFS模块
+
     "index_to_class_dict":  # 类别索引映射到类别名称的字典
         {
             0: "background",

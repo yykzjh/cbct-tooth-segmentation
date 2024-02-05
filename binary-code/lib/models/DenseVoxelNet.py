@@ -6,8 +6,14 @@
 @Version  :   1.0
 @License  :   (C)Copyright 2023
 """
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../"))
+
 import torch
 import torch.nn as nn
+
+from lib.models.modules.GlobalPMFSBlock import GlobalPMFSBlock_AP_Separate
 
 
 
@@ -17,7 +23,7 @@ class DenseVoxelNet(nn.Module):
     Trainable params: 1,783,408 (roughly 1.8 mentioned in the paper)
     """
 
-    def __init__(self, in_channels=1, classes=3):
+    def __init__(self, in_channels=1, classes=3, with_pmfs_block=False):
         super(DenseVoxelNet, self).__init__()
         num_input_features = 16
         self.dense_1_out_features = 160
@@ -31,6 +37,19 @@ class DenseVoxelNet(nn.Module):
         self.trans = _Transition(self.dense_1_out_features, self.dense_1_out_features)
         self.dense_2 = _DenseBlock(num_layers=12, num_input_features=self.dense_1_out_features, bn_size=1,
                                    growth_rate=12)
+
+        self.with_pmfs_block = with_pmfs_block
+        if with_pmfs_block:
+            self.global_pmfs_block = GlobalPMFSBlock_AP_Separate(
+                in_channels=[160, 160, 304],
+                max_pool_kernels=[2, 1, 1],
+                ch=48,
+                ch_k=48,
+                ch_v=48,
+                br=3,
+                dim="3d"
+            )
+
         self.up_block = _Upsampling(self.dense_2_out_features, self.up_out_features)
         self.conv_final = nn.Conv3d(self.up_out_features, classes, kernel_size=1, padding=0, bias=False)
         self.transpose = nn.ConvTranspose3d(self.dense_1_out_features, self.up_out_features, kernel_size=2, padding=0,
@@ -40,10 +59,14 @@ class DenseVoxelNet(nn.Module):
     def forward(self, x):
         # Main network path
         x = self.conv_init(x)
-        x = self.dense_1(x)
-        x, t = self.trans(x)
-        x = self.dense_2(x)
-        x = self.up_block(x)
+        x1 = self.dense_1(x)
+        x2, t = self.trans(x1)
+        x3 = self.dense_2(x2)
+
+        if self.with_pmfs_block:
+            x3 = self.global_pmfs_block([x1, x2, x3])
+
+        x = self.up_block(x3)
         y1 = self.conv_final(x)
 
         # Auxiliary mid-layer prediction, kind of long-skip connection
@@ -123,4 +146,18 @@ class _Upsampling(nn.Sequential):
         self.add_module('transp_conv_2',
                         nn.ConvTranspose3d(self.tr_conv1_features, self.tr_conv2_features, kernel_size=2, padding=0,
                                            output_padding=0, stride=2))
+
+
+if __name__ == '__main__':
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
+
+    x = torch.randn((1, 1, 32, 32, 32)).to(device)
+
+    model = DenseVoxelNet(in_channels=1, classes=35, with_pmfs_block=True).to(device)
+
+    output = model(x)
+
+    print(x.size())
+    print(output.size())
 

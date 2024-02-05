@@ -8,11 +8,13 @@
 """
 import os
 import sys
+
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../"))
 
 import torch
 import torch.nn as nn
 
+from lib.models.modules.GlobalPMFSBlock import GlobalPMFSBlock_AP_Separate
 
 
 class VNet(nn.Module):
@@ -21,7 +23,7 @@ class VNet(nn.Module):
     Implementation of this model is borrowed and modified (to support multi-channels and latest pytorch version)
     """
 
-    def __init__(self, elu=True, in_channels=1, classes=4):
+    def __init__(self, elu=True, in_channels=1, classes=4, with_pmfs_block=False):
         super(VNet, self).__init__()
         self.classes = classes
         self.in_channels = in_channels
@@ -31,12 +33,24 @@ class VNet(nn.Module):
         self.down_tr64 = DownTransition(32, 2, elu)
         self.down_tr128 = DownTransition(64, 3, elu, dropout=True)
         self.down_tr256 = DownTransition(128, 2, elu, dropout=True)
+
+        self.with_pmfs_block = with_pmfs_block
+        if with_pmfs_block:
+            self.global_pmfs_block = GlobalPMFSBlock_AP_Separate(
+                in_channels=[32, 64, 128, 256],
+                max_pool_kernels=[8, 4, 2, 1],
+                ch=48,
+                ch_k=48,
+                ch_v=48,
+                br=4,
+                dim="3d"
+            )
+
         self.up_tr256 = UpTransition(256, 256, 2, elu, dropout=True)
         self.up_tr128 = UpTransition(256, 128, 2, elu, dropout=True)
         self.up_tr64 = UpTransition(128, 64, 1, elu)
         self.up_tr32 = UpTransition(64, 32, 1, elu)
         self.out_tr = OutputTransition(32, classes, elu)
-
 
     def forward(self, x):
         out16 = self.in_tr(x)
@@ -44,6 +58,10 @@ class VNet(nn.Module):
         out64 = self.down_tr64(out32)
         out128 = self.down_tr128(out64)
         out256 = self.down_tr256(out128)
+
+        if self.with_pmfs_block:
+            out256 = self.global_pmfs_block([out32, out64, out128, out256])
+
         out = self.up_tr256(out256, out128)
         out = self.up_tr128(out, out64)
         out = self.up_tr64(out, out32)
@@ -166,15 +184,13 @@ class OutputTransition(nn.Module):
         return out
 
 
-
-
-
 if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
 
-    x = torch.randn((1, 1, 96, 160, 160)).to(device)
+    x = torch.randn((1, 1, 32, 32, 32)).to(device)
 
-    model = VNet(in_channels=1, classes=35).to(device)
+    model = VNet(in_channels=1, classes=35, with_pmfs_block=False).to(device)
 
     output = model(x)
 

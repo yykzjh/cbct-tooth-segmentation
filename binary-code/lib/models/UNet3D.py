@@ -14,6 +14,7 @@ import torch
 import torch.nn as nn
 
 from lib.models.modules.UNet3D_buildingblocks import DoubleConv, create_encoders, create_decoders
+from lib.models.modules.GlobalPMFSBlock import GlobalPMFSBlock_AP_Separate
 
 
 class Abstract3DUNet(nn.Module):
@@ -47,7 +48,7 @@ class Abstract3DUNet(nn.Module):
 
     def __init__(self, in_channels, out_channels, final_sigmoid, basic_module, f_maps=64, layer_order='gcr',
                  num_groups=8, num_levels=4, is_segmentation=True, conv_kernel_size=3, pool_kernel_size=2,
-                 conv_padding=1, **kwargs):
+                 conv_padding=1, with_pmfs_block=False, **kwargs):
         super(Abstract3DUNet, self).__init__()
 
         if isinstance(f_maps, int):
@@ -59,6 +60,18 @@ class Abstract3DUNet(nn.Module):
         # create encoder path
         self.encoders = create_encoders(in_channels, f_maps, basic_module, conv_kernel_size, conv_padding, layer_order,
                                         num_groups, pool_kernel_size)
+
+        self.with_pmfs_block = with_pmfs_block
+        if with_pmfs_block:
+            self.global_pmfs_block = GlobalPMFSBlock_AP_Separate(
+                in_channels=[64, 128, 256, 512],
+                max_pool_kernels=[8, 4, 2, 1],
+                ch=48,
+                ch_k=48,
+                ch_v=48,
+                br=4,
+                dim="3d"
+            )
 
         # create decoder path
         self.decoders = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding, layer_order, num_groups,
@@ -85,6 +98,9 @@ class Abstract3DUNet(nn.Module):
             x = encoder(x)
             # reverse the encoder outputs to be aligned with the decoder
             encoders_features.insert(0, x)
+
+        if self.with_pmfs_block:
+            x = self.global_pmfs_block(encoders_features[::-1])
 
         # remove the last encoder's output from the list
         # !!remember: it's the 1st in the list
@@ -114,7 +130,7 @@ class UNet3D(Abstract3DUNet):
     """
 
     def __init__(self, in_channels, out_channels, final_sigmoid=True, f_maps=64, layer_order='gcr',
-                 num_groups=8, num_levels=4, is_segmentation=True, conv_padding=1, **kwargs):
+                 num_groups=8, num_levels=4, is_segmentation=True, conv_padding=1, with_pmfs_block=False, **kwargs):
         super(UNet3D, self).__init__(in_channels=in_channels,
                                      out_channels=out_channels,
                                      final_sigmoid=final_sigmoid,
@@ -125,6 +141,7 @@ class UNet3D(Abstract3DUNet):
                                      num_levels=num_levels,
                                      is_segmentation=is_segmentation,
                                      conv_padding=conv_padding,
+                                     with_pmfs_block=with_pmfs_block,
                                      **kwargs)
 
 
@@ -138,10 +155,11 @@ def number_of_features_per_level(init_channel_number, num_levels):
 
 if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
 
-    x = torch.randn((1, 1, 96, 160, 160)).to(device)
+    x = torch.randn((1, 1, 32, 32, 32)).to(device)
 
-    model = UNet3D(in_channels=1, out_channels=35).to(device)
+    model = UNet3D(in_channels=1, out_channels=35, with_pmfs_block=True).to(device)
 
     output = model(x)
 

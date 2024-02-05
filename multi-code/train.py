@@ -111,6 +111,8 @@ params = {
 
     "classes": 35,  # 模型最后输出的通道数,即类别总数
 
+    "with_pmfs_block": False,  # 加不加PMFS模块
+
     "index_to_class_dict":  # 类别索引映射到类别名称的字典
         {
             0: "background",
@@ -280,7 +282,6 @@ def cross_validation(loss_function, metric):
 
 
 def calculate_metrics():
-
     result_str = "\n\n"
     for metric_name, values in params["metric_results_per_fold"].items():
         result_str += metric_name + ":"

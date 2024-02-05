@@ -1,9 +1,16 @@
+import os
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../"))
+
 import torch
 import torch.nn as nn
 
+from lib.models.modules.GlobalPMFSBlock import GlobalPMFSBlock_AP_Separate
+
 
 class AttentionUNet3D(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, with_pmfs_block=False):
         super(AttentionUNet3D, self).__init__()
 
         self.conv1 = DoubleConvSame3D(c_in=in_channels, c_out=64)
@@ -13,6 +20,18 @@ class AttentionUNet3D(nn.Module):
         self.enc2 = Encoder3D(128)
         self.enc3 = Encoder3D(256)
         self.enc4 = Encoder3D(512)
+
+        self.with_pmfs_block = with_pmfs_block
+        if with_pmfs_block:
+            self.global_pmfs_block = GlobalPMFSBlock_AP_Separate(
+                in_channels=[64, 128, 256, 512],
+                max_pool_kernels=[8, 4, 2, 1],
+                ch=48,
+                ch_k=48,
+                ch_v=48,
+                br=4,
+                dim="3d"
+            )
 
         self.conv5 = DoubleConvSame3D(c_in=512, c_out=1024)
 
@@ -37,6 +56,9 @@ class AttentionUNet3D(nn.Module):
         c2, p2 = self.enc1(p1)
         c3, p3 = self.enc2(p2)
         c4, p4 = self.enc3(p3)
+
+        if self.with_pmfs_block:
+            p4 = self.global_pmfs_block([p1, p2, p3, p4])
 
         """BOTTLE-NECK"""
 
@@ -220,3 +242,17 @@ class Encoder3D(nn.Module):
         p = self.pool(c)
 
         return c, p
+
+
+if __name__ == '__main__':
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
+
+    x = torch.randn((1, 1, 64, 64, 64)).to(device)
+
+    model = AttentionUNet3D(in_channels=1, out_channels=35, with_pmfs_block=True).to(device)
+
+    output = model(x)
+
+    print(x.size())
+    print(output.size())

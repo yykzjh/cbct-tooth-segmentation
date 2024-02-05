@@ -1,12 +1,18 @@
 """Module with DenseVNet"""
+import os
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../"))
+
 import torch
 import torch.nn as nn
 import numpy as np
 
+from lib.models.modules.GlobalPMFSBlock import GlobalPMFSBlock_AP_Separate
 
 
 class DenseVNet(nn.Module):
-    def __init__(self, in_channels: int = 1, classes: int = 1):
+    def __init__(self, in_channels: int = 1, classes: int = 1, with_pmfs_block=False):
         super().__init__()
 
         self.model_name = "DenseVNet"
@@ -31,6 +37,18 @@ class DenseVNet(nn.Module):
             )
             in_channels = num_downsample_channels[i] + units[i] * growth_rate[i]
 
+        self.with_pmfs_block = with_pmfs_block
+        if with_pmfs_block:
+            self.global_pmfs_block = GlobalPMFSBlock_AP_Separate(
+                in_channels=[44, 104, 24],
+                max_pool_kernels=[4, 2, 1],
+                ch=48,
+                ch_k=48,
+                ch_v=48,
+                br=3,
+                dim="3d"
+            )
+
         self.upsample_1 = torch.nn.Upsample(scale_factor=2, mode='trilinear')
         self.upsample_2 = torch.nn.Upsample(scale_factor=4, mode='trilinear')
 
@@ -43,11 +61,13 @@ class DenseVNet(nn.Module):
         )
         self.upsample_out = torch.nn.Upsample(scale_factor=2, mode='trilinear')
 
-
     def forward(self, x):
-        x, skip_1 = self.dfs_blocks[0](x)
-        x, skip_2 = self.dfs_blocks[1](x)
-        _, skip_3 = self.dfs_blocks[2](x)
+        x1, skip_1 = self.dfs_blocks[0](x)
+        x2, skip_2 = self.dfs_blocks[1](x1)
+        _, skip_3 = self.dfs_blocks[2](x2)
+
+        if self.with_pmfs_block:
+            skip_3 = self.global_pmfs_block([x1, x2, skip_3])
 
         skip_2 = self.upsample_1(skip_2)
         skip_3 = self.upsample_2(skip_3)
@@ -61,14 +81,14 @@ class DenseVNet(nn.Module):
 
 class ConvBlock(torch.nn.Module):
     def __init__(
-        self,
-        in_channels,
-        out_channels,
-        kernel_size,
-        dilation=1,
-        stride=1,
-        batch_norm=True,
-        preactivation=False,
+            self,
+            in_channels,
+            out_channels,
+            kernel_size,
+            dilation=1,
+            stride=1,
+            batch_norm=True,
+            preactivation=False,
     ):
         super().__init__()
 
@@ -118,14 +138,14 @@ class ConvBlock(torch.nn.Module):
 
 class DenseFeatureStack(torch.nn.Module):
     def __init__(
-        self,
-        in_channels,
-        units,
-        growth_rate,
-        kernel_size,
-        dilation=1,
-        batch_norm=True,
-        batchwise_spatial_dropout=False,
+            self,
+            in_channels,
+            units,
+            growth_rate,
+            kernel_size,
+            dilation=1,
+            batch_norm=True,
+            batchwise_spatial_dropout=False,
     ):
         super().__init__()
 
@@ -160,13 +180,13 @@ class DenseFeatureStack(torch.nn.Module):
 
 class DownsampleWithDfs(torch.nn.Module):
     def __init__(
-        self,
-        in_channels,
-        downsample_channels,
-        skip_channels,
-        kernel_size,
-        units,
-        growth_rate,
+            self,
+            in_channels,
+            downsample_channels,
+            skip_channels,
+            kernel_size,
+            units,
+            growth_rate,
     ):
         super().__init__()
 
@@ -189,7 +209,6 @@ class DownsampleWithDfs(torch.nn.Module):
             preactivation=True,
         )
 
-
     def forward(self, x):
         x = self.downsample(x)
         x = self.dfs(x)
@@ -198,19 +217,15 @@ class DownsampleWithDfs(torch.nn.Module):
         return x, x_skip
 
 
-
-
-def main():
-    input_value = np.random.randn(1, 1, 144, 144, 144)
-    input_value = torch.from_numpy(input_value).float().cuda()
-    print(input_value.dtype)
-
-    model = DenseVNet(1).cuda()
-    model.train()
-
-    out = model(input_value)
-    print(out.shape)
-
-
 if __name__ == '__main__':
-    main()
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
+
+    x = torch.randn((1, 1, 32, 32, 32)).to(device)
+
+    model = DenseVNet(in_channels=1, classes=35, with_pmfs_block=True).to(device)
+
+    output = model(x)
+
+    print(x.size())
+    print(output.size())
