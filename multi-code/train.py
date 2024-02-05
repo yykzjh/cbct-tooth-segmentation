@@ -187,7 +187,7 @@ params = {
 
     "patience": 1,  # ReduceLROnPlateau的衡量指标可以停止优化的最长epoch
 
-    "factor": 0.1,  # ReduceLROnPlateau的衰减系数
+    "factor": 0.5,  # ReduceLROnPlateau的衰减系数
 
     # ————————————————————————————————————————————    损失函数     ———————————————————————————————————————————————————————
 
