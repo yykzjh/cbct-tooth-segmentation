@@ -1,247 +1,234 @@
+from __future__ import annotations
+
 import os
 import sys
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../"))
 
+from collections.abc import Sequence
+
 import torch
 import torch.nn as nn
+
+from monai.networks.blocks.convolutions import Convolution
+from monai.networks.layers.factories import Norm
 
 from lib.models.modules.GlobalPMFSBlock import GlobalPMFSBlock_AP_Separate
 
 
+class ConvBlock(nn.Module):
+    def __init__(
+            self,
+            spatial_dims: int,
+            in_channels: int,
+            out_channels: int,
+            kernel_size: int = 3,
+            strides: int = 1,
+            dropout=0.0,
+    ):
+        super().__init__()
+        layers = [
+            Convolution(
+                spatial_dims=spatial_dims,
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=kernel_size,
+                strides=strides,
+                padding=None,
+                adn_ordering="NDA",
+                act="relu",
+                norm=Norm.BATCH,
+                dropout=dropout,
+            ),
+            Convolution(
+                spatial_dims=spatial_dims,
+                in_channels=out_channels,
+                out_channels=out_channels,
+                kernel_size=kernel_size,
+                strides=1,
+                padding=None,
+                adn_ordering="NDA",
+                act="relu",
+                norm=Norm.BATCH,
+                dropout=dropout,
+            ),
+        ]
+        self.conv = nn.Sequential(*layers)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x_c: torch.Tensor = self.conv(x)
+        return x_c
+
+
+class UpConv(nn.Module):
+    def __init__(self, spatial_dims: int, in_channels: int, out_channels: int, kernel_size=3, strides=2, dropout=0.0):
+        super().__init__()
+        self.up = Convolution(
+            spatial_dims,
+            in_channels,
+            out_channels,
+            strides=strides,
+            kernel_size=kernel_size,
+            act="relu",
+            adn_ordering="NDA",
+            norm=Norm.BATCH,
+            dropout=dropout,
+            is_transposed=True,
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x_u: torch.Tensor = self.up(x)
+        return x_u
+
+
+class AttentionBlock(nn.Module):
+    def __init__(self, spatial_dims: int, f_int: int, f_g: int, f_l: int, dropout=0.0):
+        super().__init__()
+        self.W_g = nn.Sequential(
+            Convolution(
+                spatial_dims=spatial_dims,
+                in_channels=f_g,
+                out_channels=f_int,
+                kernel_size=1,
+                strides=1,
+                padding=0,
+                dropout=dropout,
+                conv_only=True,
+            ),
+            Norm[Norm.BATCH, spatial_dims](f_int),
+        )
+
+        self.W_x = nn.Sequential(
+            Convolution(
+                spatial_dims=spatial_dims,
+                in_channels=f_l,
+                out_channels=f_int,
+                kernel_size=1,
+                strides=1,
+                padding=0,
+                dropout=dropout,
+                conv_only=True,
+            ),
+            Norm[Norm.BATCH, spatial_dims](f_int),
+        )
+
+        self.psi = nn.Sequential(
+            Convolution(
+                spatial_dims=spatial_dims,
+                in_channels=f_int,
+                out_channels=1,
+                kernel_size=1,
+                strides=1,
+                padding=0,
+                dropout=dropout,
+                conv_only=True,
+            ),
+            Norm[Norm.BATCH, spatial_dims](1),
+            nn.Sigmoid(),
+        )
+
+        self.relu = nn.ReLU()
+
+    def forward(self, g: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+        g1 = self.W_g(g)
+        x1 = self.W_x(x)
+        psi: torch.Tensor = self.relu(g1 + x1)
+        psi = self.psi(psi)
+
+        return x * psi
+
+
 class AttentionUNet3D(nn.Module):
-    def __init__(self, in_channels, out_channels, with_pmfs_block=False):
-        super(AttentionUNet3D, self).__init__()
 
-        self.conv1 = DoubleConvSame3D(c_in=in_channels, c_out=64)
-        self.pool = nn.MaxPool3d(kernel_size=2, stride=2)
+    def __init__(
+            self,
+            spatial_dims: int,
+            in_channels: int,
+            out_channels: int,
+            kernel_size: Sequence[int] | int = 3,
+            up_kernel_size: Sequence[int] | int = 3,
+            dropout: float = 0.0,
+            with_pmfs_block=False
+    ):
+        super().__init__()
+        self.dimensions = spatial_dims
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.channels = (64, 128, 256, 512, 1024)
+        self.strides = (2, 2, 2, 2)
+        self.kernel_size = kernel_size
+        self.up_kernel_size = up_kernel_size
+        self.dropout = dropout
 
-        self.enc1 = Encoder3D(64)
-        self.enc2 = Encoder3D(128)
-        self.enc3 = Encoder3D(256)
-        self.enc4 = Encoder3D(512)
+        self.in_conv = ConvBlock(spatial_dims=self.dimensions, in_channels=self.in_channels, out_channels=64, dropout=self.dropout)
+
+        self.enc1 = ConvBlock(spatial_dims=self.dimensions, in_channels=64, out_channels=128, strides=2, dropout=self.dropout)
+        self.enc2 = ConvBlock(spatial_dims=self.dimensions, in_channels=128, out_channels=256, strides=2, dropout=self.dropout)
+        self.enc3 = ConvBlock(spatial_dims=self.dimensions, in_channels=256, out_channels=512, strides=2, dropout=self.dropout)
+        self.enc4 = ConvBlock(spatial_dims=self.dimensions, in_channels=512, out_channels=1024, strides=2, dropout=self.dropout)
 
         self.with_pmfs_block = with_pmfs_block
         if with_pmfs_block:
             self.global_pmfs_block = GlobalPMFSBlock_AP_Separate(
-                in_channels=[64, 128, 256, 512],
-                max_pool_kernels=[8, 4, 2, 1],
+                in_channels=[64, 128, 256, 512, 1024],
+                max_pool_kernels=[16, 8, 4, 2, 1],
                 ch=48,
                 ch_k=48,
                 ch_v=48,
-                br=4,
+                br=5,
                 dim="3d"
             )
 
-        self.conv5 = DoubleConvSame3D(c_in=512, c_out=1024)
+        self.attn1 = AttentionBlock(spatial_dims=self.dimensions, f_g=64, f_l=64, f_int=32)
+        self.attn2 = AttentionBlock(spatial_dims=self.dimensions, f_g=128, f_l=128, f_int=64)
+        self.attn3 = AttentionBlock(spatial_dims=self.dimensions, f_g=256, f_l=256, f_int=128)
+        self.attn4 = AttentionBlock(spatial_dims=self.dimensions, f_g=512, f_l=512, f_int=256)
 
-        self.attn1 = AttentionBlock3D(1024, 512)
-        self.attn2 = AttentionBlock3D(512, 256)
-        self.attn3 = AttentionBlock3D(256, 128)
-        self.attn4 = AttentionBlock3D(128, 64)
+        self.upconv1 = UpConv(spatial_dims=self.dimensions, in_channels=128, out_channels=64, strides=2, kernel_size=self.up_kernel_size)
+        self.upconv2 = UpConv(spatial_dims=self.dimensions, in_channels=256, out_channels=128, strides=2, kernel_size=self.up_kernel_size)
+        self.upconv3 = UpConv(spatial_dims=self.dimensions, in_channels=512, out_channels=256, strides=2, kernel_size=self.up_kernel_size)
+        self.upconv4 = UpConv(spatial_dims=self.dimensions, in_channels=1024, out_channels=512, strides=2, kernel_size=self.up_kernel_size)
 
-        self.attndeco1 = AttentionDecoder3D(1024)
-        self.attndeco2 = AttentionDecoder3D(512)
-        self.attndeco3 = AttentionDecoder3D(256)
-        self.attndeco4 = AttentionDecoder3D(128)
+        self.dec1 = Convolution(spatial_dims=self.dimensions, in_channels=128, out_channels=64, dropout=self.dropout)
+        self.dec2 = Convolution(spatial_dims=self.dimensions, in_channels=256, out_channels=128, dropout=self.dropout)
+        self.dec3 = Convolution(spatial_dims=self.dimensions, in_channels=512, out_channels=256, dropout=self.dropout)
+        self.dec4 = Convolution(spatial_dims=self.dimensions, in_channels=1024, out_channels=512, dropout=self.dropout)
 
-        self.conv_1x1 = nn.Conv3d(in_channels=64, out_channels=out_channels, kernel_size=1)
+        self.out_conv = Convolution(
+            spatial_dims=self.dimensions,
+            in_channels=64,
+            out_channels=self.out_channels,
+            kernel_size=1,
+            strides=1,
+            padding=0,
+            conv_only=True,
+        )
 
-    def forward(self, x):
-        """ENCODER"""
-
-        c1 = self.conv1(x)
-        p1 = self.pool(c1)
-
-        c2, p2 = self.enc1(p1)
-        c3, p3 = self.enc2(p2)
-        c4, p4 = self.enc3(p3)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x1 = self.in_conv(x)
+        x2 = self.enc1(x1)
+        x3 = self.enc2(x2)
+        x4 = self.enc3(x3)
+        x5 = self.enc4(x4)
 
         if self.with_pmfs_block:
-            p4 = self.global_pmfs_block([p1, p2, p3, p4])
+            x5 = self.global_pmfs_block([x1, x2, x3, x4, x5])
 
-        """BOTTLE-NECK"""
+        g4 = self.upconv4(x5)
+        m4 = self.attn4(g=g4, x=x4)
+        d4 = self.dec4(torch.cat((m4, g4), dim=1))
+        g3 = self.upconv3(d4)
+        m3 = self.attn3(g=g3, x=x3)
+        d3 = self.dec3(torch.cat((m3, g3), dim=1))
+        g2 = self.upconv2(d3)
+        m2 = self.attn2(g=g2, x=x2)
+        d2 = self.dec2(torch.cat((m2, g2), dim=1))
+        g1 = self.upconv1(d2)
+        m1 = self.attn1(g=g1, x=x1)
+        d1 = self.dec1(torch.cat((m1, g1), dim=1))
 
-        c5 = self.conv5(p4)
-
-        """DECODER - WITH ATTENTION"""
-
-        att1 = self.attn1(c5, c4)
-        uc1 = self.attndeco1(c5, c4, att1)
-
-        att2 = self.attn2(uc1, c3)
-        uc2 = self.attndeco2(c4, c3, att2)
-
-        att3 = self.attn3(uc2, c2)
-        uc3 = self.attndeco3(c3, c2, att3)
-
-        att4 = self.attn4(uc3, c1)
-        uc4 = self.attndeco4(c2, c1, att4)
-
-        outputs = self.conv_1x1(uc4)
-
-        return outputs
-
-
-class AttentionDecoder3D(nn.Module):
-    def __init__(self, in_channels):
-        super(AttentionDecoder3D, self).__init__()
-
-        self.up_conv = DoubleConvSame3D(c_in=in_channels, c_out=in_channels // 2)
-        self.up = nn.ConvTranspose3d(
-            in_channels=in_channels,
-            out_channels=in_channels // 2,
-            kernel_size=2,
-            stride=2,
-        )
-
-    def forward(self, conv1, conv2, attn):
-        up = self.up(conv1)
-        mult = torch.multiply(attn, up)
-        cat = torch.cat([mult, conv2], dim=1)
-        uc = self.up_conv(cat)
-
-        return uc
-
-
-class AttentionBlock3D(nn.Module):
-    """
-    Class for creating Attention module
-    Takes in gating signal `g` and `x`
-    """
-
-    def __init__(self, g_chl, x_chl):
-        super(AttentionBlock3D, self).__init__()
-
-        inter_shape = x_chl // 4
-
-        # Conv 1x1 with stride 2 for `x`
-        self.conv_x = nn.Conv3d(
-            in_channels=x_chl,
-            out_channels=inter_shape,
-            kernel_size=1,
-            stride=2,
-        )
-
-        # Conv 1x1 with stride 1 for `g` (gating signal)
-        self.conv_g = nn.Conv3d(
-            in_channels=g_chl,
-            out_channels=inter_shape,
-            kernel_size=1,
-            stride=1,
-        )
-
-        # Conv 1x1 for `psi` the output after `g` + `x`
-        self.psi = nn.Conv3d(
-            in_channels=2 * inter_shape,
-            out_channels=1,
-            kernel_size=1,
-            stride=1,
-        )
-
-        # For upsampling the attention output to size of `x`
-        self.upsample = nn.Upsample(scale_factor=2)
-
-    def forward(self, g, x):
-        # perform the convs on `x` and `g`
-        theta_x = self.conv_x(x)
-        gate = self.conv_g(g)
-
-        # `theta_x` + `gate`
-        add = torch.cat([gate, theta_x], dim=1)
-
-        # ReLU on the add operation
-        relu = torch.relu(add)
-
-        # the 1x1 Conv
-        psi = self.psi(relu)
-
-        # Sigmoid the squash the outputs/attention weights
-        sig = torch.sigmoid(psi)
-
-        # Upsample to original size of `x` to perform multiplication
-        upsample = self.upsample(sig)
-
-        # return the attention weights!
-        return upsample
-
-
-class DoubleConv(nn.Module):
-    def __init__(self, c_in, c_out):
-        super(DoubleConv, self).__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_channels=c_in, out_channels=c_out, kernel_size=3),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=c_out, out_channels=c_out, kernel_size=3),
-            nn.ReLU(inplace=True),
-        )
-
-    def forward(self, x):
-        return self.conv(x)
-
-
-class DoubleConvSame(nn.Module):
-    def __init__(self, c_in, c_out):
-        super(DoubleConvSame, self).__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_channels=c_in, out_channels=c_out, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=c_out, out_channels=c_out, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-        )
-
-    def forward(self, x):
-        return self.conv(x)
-
-
-class DoubleConvSame3D(nn.Module):
-    def __init__(self, c_in, c_out):
-        super(DoubleConvSame3D, self).__init__()
-        self.conv = nn.Sequential(
-            nn.Conv3d(
-                in_channels=c_in, out_channels=c_out, kernel_size=3, stride=1, padding=1
-            ),
-            nn.ReLU(inplace=True),
-            nn.Conv3d(
-                in_channels=c_out,
-                out_channels=c_out,
-                kernel_size=3,
-                stride=1,
-                padding=1,
-            ),
-            nn.ReLU(inplace=True),
-        )
-
-    def forward(self, x):
-        return self.conv(x)
-
-
-class Encoder(nn.Module):
-    def __init__(self, in_channels):
-        super(Encoder, self).__init__()
-
-        self.conv = DoubleConvSame(c_in=in_channels, c_out=in_channels * 2)
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-
-    def forward(self, x):
-        c = self.conv(x)
-        p = self.pool(c)
-
-        return c, p
-
-
-class Encoder3D(nn.Module):
-    def __init__(self, in_channels):
-        super(Encoder3D, self).__init__()
-
-        self.conv = DoubleConvSame3D(c_in=in_channels, c_out=in_channels * 2)
-        self.pool = nn.MaxPool3d(kernel_size=2, stride=2)
-
-    def forward(self, x):
-        c = self.conv(x)
-        p = self.pool(c)
-
-        return c, p
+        out = self.out_conv(d1)
+        return out
 
 
 if __name__ == '__main__':
@@ -250,7 +237,7 @@ if __name__ == '__main__':
 
     x = torch.randn((1, 1, 64, 64, 64)).to(device)
 
-    model = AttentionUNet3D(in_channels=1, out_channels=35, with_pmfs_block=True).to(device)
+    model = AttentionUNet3D(spatial_dims=3, in_channels=1, out_channels=35, with_pmfs_block=True).to(device)
 
     output = model(x)
 

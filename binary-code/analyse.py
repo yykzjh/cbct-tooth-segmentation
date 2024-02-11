@@ -387,6 +387,7 @@ def count_all_models_parameters(model_names_list):
         "in_channels": 1,
         "classes": 2,
         "device": "cpu",
+        "with_pmfs_block": False
     }
     # 遍历统计各个模型参数量
     for model_name in model_names_list:

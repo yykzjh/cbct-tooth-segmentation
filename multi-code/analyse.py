@@ -367,6 +367,7 @@ def count_all_models_parameters(model_names_list):
         "in_channels": 1,
         "classes": 2,
         "device": "cpu",
+        "with_pmfs_block": False
     }
     # 遍历统计各个模型参数量
     for model_name in model_names_list:
@@ -752,8 +753,8 @@ if __name__ == '__main__':
     # analyse_dataset(dataset_dir=r"./datasets/HX-multi-class-10", resample_spacing=[0.5, 0.5, 0.5], clip_lower_bound_ratio=1e-6, clip_upper_bound_ratio=1 - 1e-7, classes=35)
 
     # 统计所有网络模型的参数量
-    # count_all_models_parameters(["DenseVNet", "UNet3D", "VNet", "AttentionUNet3D", "R2UNet", "R2AttentionUNet", "HighResNet3D", "DenseVoxelNet", "MultiResUNet3D", "DenseASPPUNet", "PMFSNet", "UNETR",
-    #                              "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
+    count_all_models_parameters(["DenseVNet", "UNet3D", "VNet", "AttentionUNet3D", "R2UNet", "R2AttentionUNet", "HighResNet3D", "DenseVoxelNet", "MultiResUNet3D", "DenseASPPUNet", "PMFSNet", "UNETR",
+                                 "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
 
     # 生成牙齿数据集快照
     # generate_NC_release_data_snapshot(r"./datasets")
@@ -780,4 +781,4 @@ if __name__ == '__main__':
     # generate_surface_labels(r"./datasets/HX-multi-class-10")
 
     # 生成关键点热力图标注数据集
-    generate_keypoint_heatmap_labels(r"./datasets/HX-multi-class-10")
+    # generate_keypoint_heatmap_labels(r"./datasets/HX-multi-class-10")

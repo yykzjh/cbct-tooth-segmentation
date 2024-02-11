@@ -43,7 +43,7 @@ def get_model_optimizer_lr_scheduler(opt):
         model = VNet(in_channels=opt["in_channels"], classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
 
     elif opt["model_name"] == "AttentionUNet3D":
-        model = AttentionUNet3D(in_channels=opt["in_channels"], out_channels=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
+        model = AttentionUNet3D(spatial_dims=3, in_channels=opt["in_channels"], out_channels=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
         # model = AttentionUnet(spatial_dims=3, in_channels=opt["in_channels"], out_channels=opt["classes"], channels=(64, 128, 256, 512, 1024), strides=(2, 2, 2, 2))
 
     elif opt["model_name"] == "R2UNet":
@@ -201,7 +201,7 @@ def get_model(opt):
         model = VNet(in_channels=opt["in_channels"], classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
 
     elif opt["model_name"] == "AttentionUNet3D":
-        model = AttentionUNet3D(in_channels=opt["in_channels"], out_channels=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
+        model = AttentionUNet3D(spatial_dims=3, in_channels=opt["in_channels"], out_channels=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
         # model = AttentionUnet(spatial_dims=3, in_channels=opt["in_channels"], out_channels=opt["classes"], channels=(64, 128, 256, 512, 1024), strides=(2, 2, 2, 2))
 
     elif opt["model_name"] == "R2UNet":
