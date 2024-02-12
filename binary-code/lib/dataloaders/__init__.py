@@ -24,7 +24,7 @@ def get_dataloader(opt):
         train_set = BinaryToothDataset(opt, mode="train")
         valid_set = BinaryToothDataset(opt, mode="valid")
 
-    elif opt["dataset_name"] == "BINARY-TOOTH-Surface":
+    elif opt["dataset_name"] == "BINARY-TOOTH-SURFACE":
         # 初始化数据集
         train_set = BinaryToothSurfaceDataset(opt, mode="train")
         valid_set = BinaryToothSurfaceDataset(opt, mode="valid")
@@ -52,7 +52,7 @@ def get_test_dataloader(opt):
         # 初始化数据集
         valid_set = BinaryToothDataset(opt, mode="valid")
 
-    elif opt["dataset_name"] == "BINARY-TOOTH-Surface":
+    elif opt["dataset_name"] == "BINARY-TOOTH-SURFACE":
         # 初始化数据集
         valid_set = BinaryToothSurfaceDataset(opt, mode="valid")
 

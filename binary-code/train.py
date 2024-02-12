@@ -92,7 +92,7 @@ params = {
 
     # —————————————————————————————————————————————    数据读取     ——————————————————————————————————————————————————————
 
-    "dataset_name": "BINARY-TOOTH-FULL",  # 数据集名称， 可选["BINARY-TOOTH-FULL", "BINARY-TOOTH-Surface"]
+    "dataset_name": "BINARY-TOOTH-FULL",  # 数据集名称， 可选["BINARY-TOOTH-FULL", "BINARY-TOOTH-SURFACE"]
 
     "dataset_path": r"./datasets/NC-release-data-full",  # 数据集路径
 
