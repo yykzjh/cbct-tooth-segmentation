@@ -27,7 +27,11 @@ class Normalize(object):
         """
         # 标准化图像数据
         img_tensor = (img_tensor - self.mean) / self.std
-        return img_tensor, label
+
+        if label is not None:
+            return img_tensor, label
+
+        return img_tensor
 
 
 

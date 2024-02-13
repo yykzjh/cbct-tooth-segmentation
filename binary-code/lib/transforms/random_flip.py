@@ -8,12 +8,17 @@ def random_flip(img_numpy, label=None, axis_for_flip=0):
     img_numpy = flip_axis(img_numpy, axes[axis_for_flip])
     img_numpy = np.squeeze(img_numpy)
 
-    if label is None:
+    if label is not None:
+        if label.ndim == 4:
+            for ch in range(label.shape[0]):
+                y = flip_axis(label[ch, :, :, :], axes[axis_for_flip])
+                label[ch, :, :, :] = np.squeeze(y)
+        else:
+            y = flip_axis(label, axes[axis_for_flip])
+            label = np.squeeze(y)
         return img_numpy, label
-    else:
-        y = flip_axis(label, axes[axis_for_flip])
-        y = np.squeeze(y)
-    return img_numpy, y
+
+    return img_numpy
 
 
 def flip_axis(img_numpy, axis):
@@ -38,4 +43,7 @@ class RandomFlip(object):
             label (numpy): flipped Label segmentation.
         """
         self.axis_for_flip = np.random.randint(0, 3)
-        return random_flip(img_numpy, label, self.axis_for_flip)
+        if label is None:
+            return random_flip(img_numpy, axis_for_flip=self.axis_for_flip)
+        else:
+            return random_flip(img_numpy, label=label, axis_for_flip=self.axis_for_flip)

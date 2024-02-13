@@ -1,13 +1,12 @@
 # -*- encoding: utf-8 -*-
 """
 @author   :   yykzjh    
-@Contact  :   yykzhjh@163.com
-@DateTime :   2022/12/1 22:52
+@Contact  :   1378453948@qq.com
+@DateTime :   2024/02/05 00:31
 @Version  :   1.0
-@License  :   (C)Copyright 2022
+@License  :   (C)Copyright 2024
 """
 import os
-import gc
 import glob
 import math
 import tqdm
@@ -21,9 +20,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
-from sklearn.model_selection import KFold
 
 from lib import utils, dataloaders, models, losses, metrics, trainers
+
 
 # 默认参数,这里的参数在后面添加到模型中，以params['dropout_rate']等替换原来的参数
 params = {
@@ -31,7 +30,7 @@ params = {
 
     "CUDA_VISIBLE_DEVICES": "0",  # 选择可用的GPU编号
 
-    "seed": 20240128,  # 随机种子
+    "seed": 20240213,  # 随机种子
 
     "cuda": True,  # 是否使用GPU
 
@@ -47,7 +46,7 @@ params = {
     "clip_lower_bound": -3556,  # clip的下边界数值
     "clip_upper_bound": 12419,  # clip的上边界数值
 
-    "samples_train": 256,  # 作为实际的训练集采样的子卷数量，也就是在原训练集上随机裁剪的子图像数量
+    "samples_train": 512,  # 作为实际的训练集采样的子卷数量，也就是在原训练集上随机裁剪的子图像数量
 
     "crop_size": (160, 160, 96),  # 随机裁剪的尺寸。1、每个维度都是32的倍数这样在下采样时不会报错;2、11G的显存最大尺寸不能超过(192,192,160);
     # 3、要依据上面设置的"resample_spacing",在每个维度随机裁剪的尺寸不能超过图像重采样后的尺寸;
@@ -92,7 +91,7 @@ params = {
 
     # —————————————————————————————————————————————    数据读取     ——————————————————————————————————————————————————————
 
-    "dataset_name": "MULTIPLE-TOOTH",  # 数据集名称， 可选["MULTIPLE-TOOTH"]
+    "dataset_name": "MULTIPLE-TOOTH-SURFACE",  # 数据集名称， 可选["MULTIPLE-TOOTH-SURFACE", "MULTIPLE-TOOTH-CENTROID"]
 
     "dataset_path": r"./datasets/HX-multi-class-10",  # 数据集路径
 
@@ -197,10 +196,9 @@ params = {
 
     # ————————————————————————————————————————————    损失函数     ———————————————————————————————————————————————————————
 
-    "metric_names": ["HD", "ASSD", "IoU", "SO", "DSC"],  # 采用除了dsc之外的评价指标，可选["HD", "ASSD", "IoU", "SO", "DSC"]
+    "metric_names": ["HD", "ASSD", "IoU", "SO", "DSC"],  # 采用除了dsc之外的评价指标，可选["HD", "ASSD", "IoU", "SO", "DSC", "APE"]
 
-    "loss_function_name": "DiceLoss",  # 损失函数名称，可选["DiceLoss","CrossEntropyLoss","WeightedCrossEntropyLoss",
-    # "MSELoss","SmoothL1Loss","L1Loss","WeightedSmoothL1Loss","BCEDiceLoss","BCEWithLogitsLoss"]
+    "loss_function_name": "DiceLoss",  # 损失函数名称，可选["DiceLoss", "BCEWithLogitsLoss"]
 
     "class_weight": [2.065737036158631e-05, 0.0002288518250596617, 0.10644896264800474, 0.024517091342999286, 0.031551274637690946, 0.02142641990334763, 0.023504830235874675, 0.024805246670275265,
                      0.011253835681459618, 0.012061084791323883, 0.07426874930669891, 0.025837421856808762, 0.030593882798001362, 0.02485595457346088, 0.02466779443285936, 0.025299810905129824,
@@ -216,104 +214,23 @@ params = {
 
     # —————————————————————————————————————————————   训练相关参数   ——————————————————————————————————————————————————————
 
-    "fold_k": 5,  # k折交叉验证的折数
-
-    "start_fold": 0,  # 从第几折开始训练
-    "current_fold": 0,  # 当前是第几折
-
-    "metric_results_per_fold": {"HD": [], "ASSD": [], "IoU": [], "SO": [], "DSC": []},  # 存储所有评价指标在每一折的结果
-
     "run_dir": r"./runs",  # 运行时产生的各类文件的存储根目录
 
     "start_epoch": 0,  # 训练时的起始epoch
     "end_epoch": 20,  # 训练时的结束epoch
 
-    "best_dsc": -1.0,  # 保存检查点的初始条件
+    "best_dsc": 0.0,  # 保存检查点的初始条件
 
     "update_weight_freq": 32,  # 每多少个step更新一次网络权重，用于梯度累加
 
-    "terminal_show_freq": 64,  # 终端打印统计信息的频率,以step为单位
+    "terminal_show_freq": 128,  # 终端打印统计信息的频率,以step为单位
+
+    "save_epoch_freq": 30,  # 每多少个epoch保存一次训练状态和模型参数
 
     # ————————————————————————————————————————————   测试相关参数   ———————————————————————————————————————————————————————
 
     "crop_stride": [32, 32, 32]
 }
-
-
-def load_kfold_state():
-    # 加载训练状态字典
-    resume_state_dict = torch.load(params["resume"], map_location=lambda storage, loc: storage.cuda(params["device"]))
-    # 加载交叉验证相关参数
-    params["start_fold"] = resume_state_dict["fold"]
-    params["current_fold"] = resume_state_dict["fold"]
-    params["metric_results_per_fold"] = resume_state_dict["metric_results_per_fold"]
-
-
-def cross_validation(loss_function, metric):
-    # 初始化k折交叉验证
-    kf = KFold(n_splits=params["fold_k"], shuffle=True, random_state=params["seed"])
-    # 获取数据集中所有原图图像和标注图像的路径
-    images_path_list = sorted(glob.glob(os.path.join(params["dataset_path"], "images", "*.nrrd")))
-    labels_path_list = sorted(glob.glob(os.path.join(params["dataset_path"], "labels", "*.nrrd")))
-    for i, (train_index, valid_index) in enumerate(kf.split(images_path_list, labels_path_list)):
-        if i < params["start_fold"]:
-            continue
-        params["current_fold"] = i
-        print("开始训练{}-fold......".format(i))
-        utils.pre_write_txt("开始训练{}-fold......".format(i), params["log_txt_path"])
-
-        # 划分数据集
-        train_images_path_list, train_labels_path_list = list(np.array(images_path_list)[train_index]), list(np.array(labels_path_list)[train_index])
-        valid_images_path_list, valid_labels_path_list = list(np.array(images_path_list)[valid_index]), list(np.array(labels_path_list)[valid_index])
-        print([os.path.basename(path) for path in train_images_path_list], [os.path.basename(path) for path in valid_images_path_list])
-
-        # 初始化数据加载器
-        train_loader, valid_loader = dataloaders.get_dataloader(params, train_images_path_list, train_labels_path_list, valid_images_path_list, valid_labels_path_list)
-
-        # 初始化模型、优化器和学习率调整器
-        model, optimizer, lr_scheduler = models.get_model_optimizer_lr_scheduler(params)
-
-        # 初始化训练器
-        trainer = trainers.Trainer(params, train_loader, valid_loader, model, optimizer, lr_scheduler, loss_function, metric)
-
-        # 如果需要继续训练或者加载预训练权重
-        if (params["resume"] is not None) and (params["pretrain"] is not None) and (i == params["start_fold"]):
-            trainer.load()
-
-        # 开始训练
-        trainer.training()
-
-        # 释放不用的内存
-        gc.collect()
-
-
-def calculate_metrics():
-    result_str = "\n\n"
-    for metric_name, values in params["metric_results_per_fold"].items():
-        result_str += metric_name + ":"
-        for value in values:
-            result_str += "  " + str(value)
-        result_str += "\n"
-    utils.pre_write_txt(result_str, params["log_txt_path"])
-
-    print_info = "\n\n"
-    # 评价指标作为列名
-    print_info += " " * 12
-    for metric_name in params["metric_names"]:
-        print_info += "{:^12}".format(metric_name)
-    print_info += '\n'
-    # 添加各评价指标的均值
-    print_info += "{:<12}".format("mean:")
-    for metric_name, values in params["metric_results_per_fold"].items():
-        print_info += "{:^12.6f}".format(np.mean(np.array(values)))
-    print_info += '\n'
-    # 添加各评价指标的标准差
-    print_info += "{:<12}".format("std:")
-    for metric_name, values in params["metric_results_per_fold"].items():
-        print_info += "{:^12.6f}".format(np.std(np.array(values)))
-    print(print_info)
-    utils.pre_write_txt(print_info, params["log_txt_path"])
-
 
 if __name__ == '__main__':
 
@@ -331,6 +248,14 @@ if __name__ == '__main__':
     print(params["device"])
     print("完成初始化配置")
 
+    # 初始化数据加载器
+    train_loader, valid_loader = dataloaders.get_dataloader(params)
+    print("完成初始化数据加载器")
+
+    # 初始化模型、优化器和学习率调整器
+    model, optimizer, lr_scheduler = models.get_model_optimizer_lr_scheduler(params)
+    print("完成初始化模型:{}、优化器:{}和学习率调整器:{}".format(params["model_name"], params["optimizer_name"], params["lr_scheduler_name"]))
+
     # 初始化损失函数
     loss_function = losses.get_loss_function(params)
     print("完成初始化损失函数")
@@ -339,12 +264,7 @@ if __name__ == '__main__':
     metric = metrics.get_metric(params)
     print("完成初始化评价指标")
 
-    # 是否加载kfold状态
-    if (params["resume"] is not None) and (params["pretrain"] is not None):
-        load_kfold_state()
-        print("完成kfold状态加载")
-
-    # 获取训练中间文件存储路径
+    # 创建训练执行目录和文件
     if params["resume"] is None:
         stage_str = ("_Two-Stage" if params["two_stage"] else "_Single-Stage")
         pmfs_str = ("_With-PMFS" if params["with_pmfs_block"] else "_No-PMFS")
@@ -357,13 +277,19 @@ if __name__ == '__main__':
     else:
         params["execute_dir"] = os.path.dirname(os.path.dirname(params["resume"]))
     params["checkpoint_dir"] = os.path.join(params["execute_dir"], "checkpoints")
+    params["tensorboard_dir"] = os.path.join(params["execute_dir"], "board")
     params["log_txt_path"] = os.path.join(params["execute_dir"], "log.txt")
     if params["resume"] is None:
         utils.make_dirs(params["checkpoint_dir"])
+        utils.make_dirs(params["tensorboard_dir"])
 
-    # 交叉验证训练
-    print("开始交叉验证训练......")
-    cross_validation(loss_function, metric)
+    # 初始化训练器
+    trainer = trainers.get_trainer(params, train_loader, valid_loader, model, optimizer, lr_scheduler, loss_function, metric)
 
-    # 计算评价指标的综合结果
-    calculate_metrics()
+    # 如果需要继续训练或者加载预训练权重
+    if (params["resume"] is not None) or (params["pretrain"] is not None):
+        trainer.load()
+
+    # 开始训练
+    print("开始训练......")
+    trainer.training()

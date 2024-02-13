@@ -113,6 +113,12 @@ params = {
 
     "with_pmfs_block": False,  # 加不加PMFS模块
 
+    "two_stage": False,  # 是否采用两阶段架构
+
+    "surface_pretrain": None,  # 表面轮廓分割模型预训练权重
+
+    "centroid_pretrain": None,  # 几何中心分割模型预训练权重
+
     "index_to_class_dict":  # 类别索引映射到类别名称的字典
         {
             0: "background",
@@ -234,7 +240,14 @@ if __name__ == '__main__':
     # 创建训练执行目录和文件
     if not params["optimize_params"]:
         if params["resume"] is None:
-            params["execute_dir"] = os.path.join(params["run_dir"], utils.datestr() + "_" + params["model_name"] + "_" + params["dataset_name"])
+            stage_str = ("_Two-Stage" if params["two_stage"] else "_Single-Stage")
+            pmfs_str = ("_With-PMFS" if params["with_pmfs_block"] else "_No-PMFS")
+            params["execute_dir"] = os.path.join(params["run_dir"],
+                                                 utils.datestr() +
+                                                 stage_str +
+                                                 "_" + params["model_name"] +
+                                                 pmfs_str +
+                                                 "_" + params["dataset_name"])
         else:
             params["execute_dir"] = os.path.dirname(os.path.dirname(params["resume"]))
         params["checkpoint_dir"] = os.path.join(params["execute_dir"], "checkpoints")

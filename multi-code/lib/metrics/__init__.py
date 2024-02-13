@@ -11,6 +11,7 @@ from .ASSD import *
 from .DSC import *
 from .SO import *
 from .IoU import *
+from .APE import *
 
 
 def get_metric(opt):
@@ -29,9 +30,11 @@ def get_metric(opt):
         elif metric_name == "SO":
             metric.append(SurfaceOverlappingValues(num_classes=opt["classes"], sigmoid_normalization=opt["sigmoid_normalization"], theta=1.0))
 
-
         elif metric_name == "IoU":
             metric.append(IoU(num_classes=opt["classes"], sigmoid_normalization=opt["sigmoid_normalization"]))
+
+        elif metric_name == "APE":
+            metric.append(AveragePointToPointErrors(num_classes=opt["classes"], sigmoid_normalization=opt["sigmoid_normalization"]))
 
         else:
             raise Exception(f"{metric_name}是不支持的评价指标！")

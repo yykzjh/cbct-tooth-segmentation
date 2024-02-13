@@ -10,20 +10,18 @@ import torch
 import numpy as np
 
 
-
 class ClipAndShift(object):
     def __init__(self, lower_bound, upper_bound):
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
 
-
-    def __call__(self, img_numpy, label):
+    def __call__(self, img_numpy, label=None):
         img_numpy[img_numpy < self.lower_bound] = self.lower_bound
         img_numpy[img_numpy > self.upper_bound] = self.upper_bound
 
         img_numpy -= self.lower_bound
 
+        if label is None:
+            return img_numpy
+
         return img_numpy, label
-
-
-

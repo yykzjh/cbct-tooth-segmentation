@@ -661,7 +661,7 @@ def generate_surface_labels(src_root_dir):
         label = sitk.GetImageFromArray(label_np)
         label.SetSpacing(spacing)
 
-        # 获取变脸轮廓边界点
+        # 获取标签轮廓边界点
         surface_label = sitk.LabelContour(label)
         surface_label.SetSpacing(spacing)
 

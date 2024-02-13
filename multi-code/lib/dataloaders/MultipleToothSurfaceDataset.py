@@ -16,26 +16,21 @@ import lib.transforms as transforms
 import lib.utils as utils
 
 
-class MultipleToothDataset(Dataset):
+class MultipleToothSurfaceDataset(Dataset):
     """
-    读取多分类牙齿数据集
+    读取多分类牙齿表面轮廓数据集
     """
 
-    def __init__(self, opt, images_path_list, labels_path_list, mode):
+    def __init__(self, opt, mode):
         """
         Args:
             opt: 参数字典
-            images_path_list: 所有原始图像路径
-            labels_path_list: 所有标签图像路径
             mode: train/valid
         """
         self.opt = opt
-        self.mode = mode
         self.root = opt["dataset_path"]
-        self.train_path = os.path.join(self.root, "train")
-        self.val_path = os.path.join(self.root, "valid")
+        self.mode = mode
 
-        # 分类创建子卷数据集
         if self.mode == 'train':
             # 初始化数据增强列表
             self.augmentations = [
@@ -48,8 +43,7 @@ class MultipleToothDataset(Dataset):
             self.sub_volume_path = os.path.join(self.sub_volume_root_dir,
                                                 "-".join([str(item) for item in opt["crop_size"]])
                                                 + "_" + str(opt["samples_train"])
-                                                + "_" + str(opt["crop_threshold"])
-                                                + "_" + str(self.opt["current_fold"]) + "-fold" + ".npz")
+                                                + "_" + str(opt["crop_threshold"]) + ".npz")
             # 初始化子卷数据集存储数据结构
             self.selected_images = []
             self.selected_position = []
@@ -91,6 +85,10 @@ class MultipleToothDataset(Dataset):
                 self.selected_images = [tuple(image) for image in sub_volume_dict["selected_images"]]
                 self.selected_position = [tuple(crop_point) for crop_point in sub_volume_dict["selected_position"]]
             else:  # 如果需要创建子数据集，或者没有存储子数据集信息的文件
+                # 获取数据集中所有原图图像和标注图像的路径
+                images_path_list = sorted(glob.glob(os.path.join(self.root, "images", "*.nrrd")))
+                labels_path_list = sorted(glob.glob(os.path.join(self.root, "labels", "*.nrrd")))
+
                 # 生成子卷数据集
                 self.selected_images, self.selected_position = utils.create_sub_volumes(images_path_list, labels_path_list, opt)
 
@@ -105,6 +103,10 @@ class MultipleToothDataset(Dataset):
                 transforms.Normalize(opt["normalize_mean"], opt["normalize_std"])
             ])
 
+            # 获取数据集中所有原图图像和标注图像的路径
+            images_path_list = sorted(glob.glob(os.path.join(self.root, "images", "*.nrrd")))
+            labels_path_list = sorted(glob.glob(os.path.join(self.root, "labels", "*.nrrd")))
+
             # 得到验证集数据
             self.selected_images = list(zip(images_path_list, labels_path_list))
 
@@ -114,9 +116,12 @@ class MultipleToothDataset(Dataset):
     def __getitem__(self, index):
         # 先获取原图图像和标注图像的路径
         image_path, label_path = self.selected_images[index]
+        # 修改label的路径
+        label_path = label_path.replace("labels", "surface_labels")
+        label_path = label_path.replace(".nrrd", ".nii.gz")
         # 读取原始图像和标注图像
         image_np = utils.load_image_or_label(image_path, self.opt["resample_spacing"], type="image")
-        label_np = utils.load_image_or_label(label_path, self.opt["resample_spacing"], type="label", index_to_class_dict=self.opt["index_to_class_dict"])
+        label_np = utils.load_image_or_label(label_path, self.opt["resample_spacing"], type="surface_label")
 
         if self.mode == 'train':  # 训练集
             # 获取随机裁剪的位置

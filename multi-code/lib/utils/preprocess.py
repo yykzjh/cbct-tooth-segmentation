@@ -117,21 +117,22 @@ def load_image_or_label(path, resample_spacing, type=None, index_to_class_dict=N
     # 判断是读取标注文件还是原图像文件
     if type == "label":
         img_np, spacing = load_label(path, index_to_class_dict=index_to_class_dict)
-        # print(img_np.shape, spacing)
+    elif type == "surface_label":
+        img_np, spacing = load_nii_file(path)
+    elif type == "centroid_label":
+        img_np = load_heatmap(path)
+        return img_np
     else:
         img_np, spacing = load_image(path)
 
     # 定义插值算法
     if order is None:
-        if type == "label":
+        if type == "label" or type == "surface_label":
             order = 0
         else:
             order = 3
     # 重采样
     img_np = resample_image_spacing(img_np, spacing, resample_spacing, order)
-
-    # if type == "label":
-    #     print(img_np.shape)
 
     return img_np
 
@@ -211,6 +212,56 @@ def load_image(path):
     return data, spacing
 
 
+def load_nii_file(file_path):
+    """
+    底层读取.nii.gz文件
+    Args:
+        file_path: 文件路径
+
+    Returns: uint16格式的三维numpy数组, spacing三个元素的元组
+
+    """
+    # 读取nii对象
+    NiiImage = sitk.ReadImage(file_path)
+    # 从nii对象中获取numpy格式的数组，[z, y, x]
+    image_numpy = sitk.GetArrayFromImage(NiiImage)
+    # 转换维度为 [x, y, z]
+    image_numpy = image_numpy.transpose(2, 1, 0)
+    # 获取体素间距
+    spacing = NiiImage.GetSpacing()
+
+    return image_numpy, spacing
+
+
+def load_heatmap(path):
+    """
+    加载关键点热力图
+
+    :param path: txt文件路径
+    :return:
+    """
+    # 初始化热力图
+    heatmaps = []
+    # 从文件中读取几何中心信息
+    with open(path, 'r') as file:
+        lines = file.readlines()
+        for i in range(len(lines)):
+            lines[i] = lines[i].strip('\n')
+    # 获取图像尺寸
+    sizes = lines[0].split()
+    h, w, d = int(sizes[0]), int(sizes[1]), int(sizes[2])
+    # 解析几何中心并生成热力图
+    for i in range(1, len(lines)-1):
+        positions = lines[i].split()
+        centroid_x, centroid_y, centroid_z = float(positions[0]), float(positions[1]), float(positions[2])
+        if (centroid_x == 0) and (centroid_y == 0) and (centroid_z == 0):
+            heatmaps.append(np.zeros((h, w, d)))
+        else:
+            heatmaps.append(utils.generate_heatmap_label(h, w, d, centroid_x, centroid_y, centroid_z, sigma=5))
+    heatmap = np.stack(heatmaps, axis=0)
+    return heatmap
+
+
 def resample_image_spacing(data, old_spacing, new_spacing, order):
     """
     根据体素间距对图像进行重采样
@@ -235,22 +286,24 @@ def crop_img(img_np, crop_size, crop_point):
     assert inp_img_dim >= 3
     if img_np.ndim == 3:
         full_dim1, full_dim2, full_dim3 = img_np.shape
+        if full_dim1 == dim1:
+            img_np = img_np[:, w_crop:w_crop + dim2, h_crop:h_crop + dim3]
+        elif full_dim2 == dim2:
+            img_np = img_np[slices_crop:slices_crop + dim1, :, h_crop:h_crop + dim3]
+        elif full_dim3 == dim3:
+            img_np = img_np[slices_crop:slices_crop + dim1, w_crop:w_crop + dim2, :]
+        else:
+            img_np = img_np[slices_crop:slices_crop + dim1, w_crop:w_crop + dim2, h_crop:h_crop + dim3]
     elif img_np.ndim == 4:
         _, full_dim1, full_dim2, full_dim3 = img_np.shape
-        img_np = img_np[0, ...]
-
-    if full_dim1 == dim1:
-        img_np = img_np[:, w_crop:w_crop + dim2, h_crop:h_crop + dim3]
-    elif full_dim2 == dim2:
-        img_np = img_np[slices_crop:slices_crop + dim1, :, h_crop:h_crop + dim3]
-    elif full_dim3 == dim3:
-        img_np = img_np[slices_crop:slices_crop + dim1, w_crop:w_crop + dim2, :]
-    else:
-        img_np = img_np[slices_crop:slices_crop + dim1, w_crop:w_crop + dim2, h_crop:h_crop + dim3]
-
-    if inp_img_dim == 4:
-        return img_np.unsqueeze(0)
-
+        if full_dim1 == dim1:
+            img_np = img_np[:, :, w_crop:w_crop + dim2, h_crop:h_crop + dim3]
+        elif full_dim2 == dim2:
+            img_np = img_np[:, slices_crop:slices_crop + dim1, :, h_crop:h_crop + dim3]
+        elif full_dim3 == dim3:
+            img_np = img_np[:, slices_crop:slices_crop + dim1, w_crop:w_crop + dim2, :]
+        else:
+            img_np = img_np[:, slices_crop:slices_crop + dim1, w_crop:w_crop + dim2, h_crop:h_crop + dim3]
     return img_np
 
 

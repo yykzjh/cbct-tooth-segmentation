@@ -22,5 +22,7 @@ class GaussianNoise(object):
             img_numpy (numpy):  flipped img.
             label (numpy): flipped Label segmentation.
         """
-
-        return gaussian_noise(img_numpy, self.mean, self.std), label
+        if label is None:
+            return gaussian_noise(img_numpy, self.mean, self.std)
+        else:
+            return gaussian_noise(img_numpy, self.mean, self.std), label

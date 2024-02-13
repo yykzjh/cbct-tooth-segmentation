@@ -31,8 +31,6 @@ def elastic_transform_3d(img_numpy, labels=None, alpha=1, sigma=20, c_val=0.0, m
     :return: deformed image and/or label
     """
     assert img_numpy.ndim == 3, 'Wrong img shape, provide 3D img'
-    if labels is not None:
-        assert img_numpy.shape == labels.shape, "Shapes of img and label do not much!"
     shape = img_numpy.shape
 
     # Define 3D coordinate system
@@ -63,12 +61,13 @@ def elastic_transform_3d(img_numpy, labels=None, alpha=1, sigma=20, c_val=0.0, m
 
     # Interpolate labels
     if labels is not None:
-        lab_intrp = RegularGridInterpolator(coords, labels,
-                                            method="nearest",
-                                            bounds_error=False,
-                                            fill_value=0)
-
-        labels = lab_intrp(indices).reshape(shape).astype(labels.dtype)
+        if labels.ndim == 4:
+            for ch in range(labels.shape[0]):
+                lab_intrp = RegularGridInterpolator(coords, labels[ch, :, :, :], method="linear", bounds_error=False, fill_value=0)
+                labels[ch, :, :, :] = lab_intrp(indices).reshape(shape).astype(labels.dtype)
+        else:
+            lab_intrp = RegularGridInterpolator(coords, labels, method="nearest", bounds_error=False, fill_value=0)
+            labels = lab_intrp(indices).reshape(shape).astype(labels.dtype)
         return img_numpy, labels
 
     return img_numpy
@@ -82,11 +81,12 @@ class ElasticTransform(object):
         self.method = method
 
     def __call__(self, img_numpy, label=None):
-        img_numpy, label = elastic_transform_3d(img_numpy, label, self.alpha, self.sigma, self.c_val, self.method)
-        return img_numpy, label
-
-
-
+        if label is None:
+            img_numpy = elastic_transform_3d(img_numpy, alpha=self.alpha, sigma=self.sigma, c_val=self.c_val, method=self.method)
+            return img_numpy
+        else:
+            img_numpy, label = elastic_transform_3d(img_numpy, labels=label, alpha=self.alpha, sigma=self.sigma, c_val=self.c_val, method=self.method)
+            return img_numpy, label
 
 
 if __name__ == '__main__':
@@ -97,6 +97,7 @@ if __name__ == '__main__':
     def f(x, y, z):
         return 2 * x ** 3 + 3 * y ** 2 - z
 
+
     x = np.linspace(1, 4, 11)
     y = np.linspace(4, 7, 22)
     z = np.linspace(7, 9, 33)
@@ -106,5 +107,3 @@ if __name__ == '__main__':
 
     pts = np.array([[2.1, 6.2, 8.3], [3.3, 5.2, 7.1]])
     print(my_interpolating_function(pts))
-
-

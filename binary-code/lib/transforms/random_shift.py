@@ -22,10 +22,18 @@ def random_shift(img_numpy, label=None, max_percentage=0.2):
     d1 = np.random.randint(-m1, m1)
     d2 = np.random.randint(-m2, m2)
     d3 = np.random.randint(-m3, m3)
+
+    img_numpy = transform_matrix_offset_center_3d(img_numpy, d1, d2, d3)
+
     if label is not None:
-        return transform_matrix_offset_center_3d(img_numpy, d1, d2, d3), \
-               transform_matrix_offset_center_3d(label, d1, d2, d3)
-    return transform_matrix_offset_center_3d(img_numpy, d1, d2, d3)
+        if label.ndim == 4:
+            for ch in range(label.shape[0]):
+                label[ch, :, :, :] = transform_matrix_offset_center_3d(label[ch, :, :, :], d1, d2, d3)
+        else:
+            label = transform_matrix_offset_center_3d(label, d1, d2, d3)
+        return img_numpy, label
+
+    return img_numpy
 
 
 class RandomShift(object):
@@ -33,5 +41,9 @@ class RandomShift(object):
         self.max_percentage = max_percentage
 
     def __call__(self, img_numpy, label=None):
-        img_numpy, label = random_shift(img_numpy, label, self.max_percentage)
-        return img_numpy, label
+        if label is None:
+            img_numpy = random_shift(img_numpy, max_percentage=self.max_percentage)
+            return img_numpy
+        else:
+            img_numpy, label = random_shift(img_numpy, label=label, max_percentage=self.max_percentage)
+            return img_numpy, label

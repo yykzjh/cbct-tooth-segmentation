@@ -33,9 +33,3 @@ class RandomCropToLabels(object):
 
     def __call__(self, img_numpy, label):
         return random_crop_to_labels(img_numpy, label)
-
-
-
-
-
-

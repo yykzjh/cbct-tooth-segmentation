@@ -17,7 +17,7 @@ class ToTensor(object):
         self.upper_bound = upper_bound
 
 
-    def __call__(self, img_numpy, label):
+    def __call__(self, img_numpy, label=None):
         """
         Args:
             img_numpy: Image transforms from numpy to tensor
@@ -33,8 +33,8 @@ class ToTensor(object):
         if label is not None:
             label_tensor = torch.FloatTensor(np.ascontiguousarray(label))
             return img_tensor, label_tensor
-        else:
-            return img_tensor, label
+
+        return img_tensor
 
 
 
