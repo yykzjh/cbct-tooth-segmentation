@@ -358,16 +358,19 @@ def analyse_dataset(dataset_dir, resample_spacing=(0.5, 0.5, 0.5), clip_lower_bo
 
 def count_parameters(model):
     """计算PyTorch模型的参数数量"""
-    return sum(p.numel() for p in model.parameters() if p.requires_grad) / 1e6
+    return sum(p.numel() for p in model.parameters()) / 1e6
 
 
 def count_all_models_parameters(model_names_list):
     # 先构造参数字典
     opt = {
         "in_channels": 1,
-        "classes": 2,
+        "classes": 35,
         "device": "cpu",
-        "with_pmfs_block": False
+        "with_pmfs_block": False,
+        "two_stage": True,
+        "surface_pretrain": None,
+        "centroid_pretrain": None
     }
     # 遍历统计各个模型参数量
     for model_name in model_names_list:

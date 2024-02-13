@@ -378,7 +378,7 @@ def analyse_dataset(dataset_dir, resample_spacing=(0.5, 0.5, 0.5), clip_lower_bo
 
 def count_parameters(model):
     """计算PyTorch模型的参数数量"""
-    return sum(p.numel() for p in model.parameters() if p.requires_grad) / 1e6
+    return sum(p.numel() for p in model.parameters()) / 1e6
 
 
 def count_all_models_parameters(model_names_list):
@@ -387,7 +387,10 @@ def count_all_models_parameters(model_names_list):
         "in_channels": 1,
         "classes": 2,
         "device": "cpu",
-        "with_pmfs_block": False
+        "with_pmfs_block": False,
+        "two_stage": True,
+        "surface_pretrain": None,
+        "centroid_pretrain": None
     }
     # 遍历统计各个模型参数量
     for model_name in model_names_list:
@@ -703,13 +706,6 @@ def generate_surface_labels(src_root_dir):
         # break
 
 
-
-
-
-
-
-
-
 if __name__ == '__main__':
     # load_nii_file(r"./datasets/NC-release-data-full/train/images/1001484858_20150118.nii.gz")
 
@@ -724,8 +720,8 @@ if __name__ == '__main__':
     # analyse_dataset(dataset_dir=r"./datasets/NC-release-data-full", resample_spacing=[0.5, 0.5, 0.5], clip_lower_bound_ratio=1e-6, clip_upper_bound_ratio=1-1e-7)
 
     # 统计所有网络模型的参数量
-    # count_all_models_parameters(["DenseVNet", "UNet3D", "VNet", "AttentionUNet3D", "R2UNet", "R2AttentionUNet", "HighResNet3D", "DenseVoxelNet", "MultiResUNet3D", "DenseASPPUNet", "PMFSNet", "UNETR",
-    #                              "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
+    count_all_models_parameters(["DenseVNet", "UNet3D", "VNet", "AttentionUNet3D", "R2UNet", "R2AttentionUNet", "HighResNet3D", "DenseVoxelNet", "MultiResUNet3D", "DenseASPPUNet", "PMFSNet", "UNETR",
+                                 "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
 
     # 生成牙齿数据集快照
     # generate_NC_release_data_snapshot(r"./datasets")
@@ -749,4 +745,4 @@ if __name__ == '__main__':
     # generate_three_views(r"./datasets/NC-release-data-full/train/images/1001152328_20180112.nii.gz")
 
     # 生成表面轮廓标注图像数据集
-    generate_surface_labels(r"./datasets/NC-release-data-full/valid")
+    # generate_surface_labels(r"./datasets/NC-release-data-full/valid")
