@@ -706,6 +706,14 @@ def generate_surface_labels(src_root_dir):
         # break
 
 
+def show_valid_set(root_dir):
+    label_dir = os.path.join(root_dir, "labels")
+    for label_name in os.listdir(label_dir):
+        label_path = os.path.join(label_dir, label_name)
+        label_np = utils.load_image_or_label(label_path, [0.5, 0.5, 0.5], type="label")
+        print(label_name, ": ", label_np.shape)
+
+
 if __name__ == '__main__':
     # load_nii_file(r"./datasets/NC-release-data-full/train/images/1001484858_20150118.nii.gz")
 
@@ -720,8 +728,8 @@ if __name__ == '__main__':
     # analyse_dataset(dataset_dir=r"./datasets/NC-release-data-full", resample_spacing=[0.5, 0.5, 0.5], clip_lower_bound_ratio=1e-6, clip_upper_bound_ratio=1-1e-7)
 
     # 统计所有网络模型的参数量
-    count_all_models_parameters(["DenseVNet", "UNet3D", "VNet", "AttentionUNet3D", "R2UNet", "R2AttentionUNet", "HighResNet3D", "DenseVoxelNet", "MultiResUNet3D", "DenseASPPUNet", "PMFSNet", "UNETR",
-                                 "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
+    # count_all_models_parameters(["DenseVNet", "UNet3D", "VNet", "AttentionUNet3D", "R2UNet", "R2AttentionUNet", "HighResNet3D", "DenseVoxelNet", "MultiResUNet3D", "DenseASPPUNet", "PMFSNet", "UNETR",
+    #                              "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
 
     # 生成牙齿数据集快照
     # generate_NC_release_data_snapshot(r"./datasets")
@@ -746,3 +754,6 @@ if __name__ == '__main__':
 
     # 生成表面轮廓标注图像数据集
     # generate_surface_labels(r"./datasets/NC-release-data-full/valid")
+
+    # 打印验证集所有图像尺寸
+    show_valid_set(r"./datasets/NC-release-data-full/valid")
