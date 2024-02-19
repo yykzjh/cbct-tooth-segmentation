@@ -83,7 +83,7 @@ class MultipleToothCentroidDataset(Dataset):
             else:  # 如果需要创建子数据集，或者没有存储子数据集信息的文件
                 # 获取数据集中所有原图图像和标注图像的路径
                 images_path_list = sorted(glob.glob(os.path.join(self.root, "images", "*.nrrd")))
-                labels_path_list = sorted(glob.glob(os.path.join(self.root, "labels", "*.txt")))
+                labels_path_list = sorted(glob.glob(os.path.join(self.root, "labels", "*.nrrd")))
 
                 # 生成子卷数据集
                 self.selected_images, self.selected_position = utils.create_sub_volumes(images_path_list, labels_path_list, opt)
