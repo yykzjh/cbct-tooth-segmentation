@@ -448,15 +448,55 @@ def compare_Dice():
 
 
 def generate_samples_image(scale=2):
+    # # 创建整个大图
+    # image = np.full((960, 1295, 3), 255)
+    # # 依次遍历
+    # for i in range(4):
+    #     for j in range(4):
+    #         x = i * (224 + 8)
+    #         y = j * (320 + 5)
+    #         # 读取并处理图像
+    #         img = cv2.imread(r"./images/challenging_samples/" + str(i) + str(j) + ".jpg")
+    #         img = cv2.resize(img, (320, 224))
+    #         image[x: x + 224, y: y + 320, :] = img
+    # image = image[:, :, ::-1]
+    # # 添加文字
+    # image = Image.fromarray(np.uint8(image))
+    # draw = ImageDraw.Draw(image)
+    # font = ImageFont.truetype(r"C:\Windows\Fonts\times.ttf", 36)
+    # color = (0, 0, 0)
+    #
+    # position1 = (60, 917)
+    # text1 = "Original Image"
+    # draw.text(position1, text1, font=font, fill=color)
+    #
+    # position2 = (350, 917)
+    # text2 = "Ground Truth (2D)"
+    # draw.text(position2, text2, font=font, fill=color)
+    #
+    # position3 = (665, 917)
+    # text3 = "Coronal MIP Image"
+    # draw.text(position3, text3, font=font, fill=color)
+    #
+    # position4 = (990, 917)
+    # text4 = "Ground Truth (3D)"
+    # draw.text(position4, text4, font=font, fill=color)
+    #
+    # image.show()
+    # w, h = image.size
+    # image = image.resize((scale * w, scale * h), resample=Image.Resampling.BILINEAR)
+    # print(image.size)
+    # image.save(r"./images/challenging_samples/challenging_samples.jpg")
+
     # 创建整个大图
-    image = np.full((960, 1295, 3), 255)
+    image = np.full((728, 970, 3), 255)
     # 依次遍历
-    for i in range(4):
-        for j in range(4):
+    for i in range(3):
+        for j in range(3):
             x = i * (224 + 8)
             y = j * (320 + 5)
             # 读取并处理图像
-            img = cv2.imread(r"./images/challenging_samples/" + str(i) + str(j) + ".jpg")
+            img = cv2.imread(r"./images/samples/" + str(i) + str(j) + ".jpg")
             img = cv2.resize(img, (320, 224))
             image[x: x + 224, y: y + 320, :] = img
     image = image[:, :, ::-1]
@@ -466,27 +506,23 @@ def generate_samples_image(scale=2):
     font = ImageFont.truetype(r"C:\Windows\Fonts\times.ttf", 36)
     color = (0, 0, 0)
 
-    position1 = (60, 917)
+    position1 = (60, 685)
     text1 = "Original Image"
     draw.text(position1, text1, font=font, fill=color)
 
-    position2 = (350, 917)
+    position2 = (350, 685)
     text2 = "Ground Truth (2D)"
     draw.text(position2, text2, font=font, fill=color)
 
-    position3 = (665, 917)
-    text3 = "Coronal MIP Image"
+    position3 = (665, 685)
+    text3 = "Ground Truth (3D)"
     draw.text(position3, text3, font=font, fill=color)
-
-    position4 = (990, 917)
-    text4 = "Ground Truth (3D)"
-    draw.text(position4, text4, font=font, fill=color)
 
     image.show()
     w, h = image.size
     image = image.resize((scale * w, scale * h), resample=Image.Resampling.BILINEAR)
     print(image.size)
-    image.save(r"./images/challenging_samples/challenging_samples.jpg")
+    image.save(r"./images/samples/Multiple_Dataset_Samples.jpg")
 
 
 def generate_segmented_sample_image(scale=1):
@@ -741,6 +777,13 @@ def generate_keypoint_heatmap_labels(src_root_dir):
         utils.pre_write_txt(heatmap_str, txt_file_path)
 
 
+def show_dataset_spacing_resolution(root_dir):
+    images_dir = os.path.join(root_dir, "images")
+    for image_name in os.listdir(images_dir):
+        image_path = os.path.join(images_dir, image_name)
+        image, spacing = utils.load_image(image_path)
+        print(image.shape, spacing)
+
 
 if __name__ == '__main__':
     # load_nii_file(r"./datasets/NC-release-data-full/valid/labels/Teeth_0011_0000.nii.gz")
@@ -756,8 +799,8 @@ if __name__ == '__main__':
     # analyse_dataset(dataset_dir=r"./datasets/HX-multi-class-10", resample_spacing=[0.5, 0.5, 0.5], clip_lower_bound_ratio=1e-6, clip_upper_bound_ratio=1 - 1e-7, classes=35)
 
     # 统计所有网络模型的参数量
-    count_all_models_parameters(["DenseVNet", "UNet3D", "VNet", "AttentionUNet3D", "R2UNet", "R2AttentionUNet", "HighResNet3D", "DenseVoxelNet", "MultiResUNet3D", "DenseASPPUNet", "PMFSNet", "UNETR",
-                                 "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
+    # count_all_models_parameters(["DenseVNet", "UNet3D", "VNet", "AttentionUNet3D", "R2UNet", "R2AttentionUNet", "HighResNet3D", "DenseVoxelNet", "MultiResUNet3D", "DenseASPPUNet", "PMFSNet", "UNETR",
+    #                              "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
 
     # 生成牙齿数据集快照
     # generate_NC_release_data_snapshot(r"./datasets")
@@ -766,7 +809,7 @@ if __name__ == '__main__':
     # compare_Dice()
 
     # 生成牙齿数据集的样本展示图
-    # generate_samples_image(scale=1)
+    generate_samples_image(scale=1)
 
     # 生成分割后拼接图
     # generate_segmented_sample_image(scale=1)
@@ -785,3 +828,6 @@ if __name__ == '__main__':
 
     # 生成关键点热力图标注数据集
     # generate_keypoint_heatmap_labels(r"./datasets/HX-multi-class-10")
+
+    # 打印数据集原始体素间距和分辨率
+    # show_dataset_spacing_resolution(r"./datasets/HX-multi-class-10")
