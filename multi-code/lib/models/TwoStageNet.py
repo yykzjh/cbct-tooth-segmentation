@@ -34,7 +34,7 @@ class TwoStageNet(nn.Module):
         self.in_channels = in_channels
 
         # 初始化第一阶段的模型
-        self.stage1_surface_model = PMFSNet(in_channels=self.in_channels, out_channels=2, dim="3d", scaling_version="TINY", with_pmfs_block=False)
+        self.stage1_surface_model = PMFSNet(in_channels=self.in_channels, out_channels=35, dim="3d", scaling_version="TINY", with_pmfs_block=False)
         self.stage1_centroid_model = PMFSNet(in_channels=self.in_channels, out_channels=33, dim="3d", scaling_version="TINY", with_pmfs_block=False)
 
         # 加载第一阶段模型参数
@@ -52,7 +52,9 @@ class TwoStageNet(nn.Module):
         # 组合一阶段预测结果和原始输入
         surface_logits = nn.Softmax(dim=1)(surface_pred)
         surface_x = torch.argmax(surface_logits, dim=1, keepdim=True)
-        centroid_x = nn.Sigmoid()(centroid_pred)
+        centroid_logits = nn.Sigmoid()(centroid_pred)
+        centroid_logits[:, 0, :, :, :] = self.opt["centroid_threshold"]
+        centroid_x = torch.argmax(centroid_logits, dim=1, keepdim=True)
         merge_x = torch.cat([surface_x, centroid_x, x], dim=1)
 
         # 二阶段分割

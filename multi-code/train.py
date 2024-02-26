@@ -119,6 +119,8 @@ params = {
 
     "centroid_pretrain": None,  # 几何中心分割模型预训练权重
 
+    "centroid_threshold": 0.6,  # 被判断为几何中心关键点的阈值
+
     "index_to_class_dict":  # 类别索引映射到类别名称的字典
         {
             0: "background",

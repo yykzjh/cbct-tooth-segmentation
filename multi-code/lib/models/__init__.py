@@ -36,39 +36,39 @@ from .TwoStageNet import TwoStageNet
 def get_model_optimizer_lr_scheduler(opt):
     # 初始化网络模型
     if opt["model_name"] == "DenseVNet":
-        model = DenseVNet(in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
+        model = DenseVNet(in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
 
     elif opt["model_name"] == "UNet3D":
-        model = UNet3D(opt["in_channels"] + (34 if opt["two_stage"] else 0), opt["classes"], final_sigmoid=False, with_pmfs_block=opt["with_pmfs_block"])
+        model = UNet3D(opt["in_channels"] + (2 if opt["two_stage"] else 0), opt["classes"], final_sigmoid=False, with_pmfs_block=opt["with_pmfs_block"])
 
     elif opt["model_name"] == "VNet":
-        model = VNet(in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
+        model = VNet(in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
 
     elif opt["model_name"] == "AttentionUNet3D":
-        model = AttentionUNet3D(spatial_dims=3, in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), out_channels=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
-        # model = AttentionUnet(spatial_dims=3, in_channels=opt["in_channels"]+(34 if opt["two_stage"] else 0), out_channels=opt["classes"], channels=(64, 128, 256, 512, 1024), strides=(2, 2, 2, 2))
+        model = AttentionUNet3D(spatial_dims=3, in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), out_channels=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
+        # model = AttentionUnet(spatial_dims=3, in_channels=opt["in_channels"]+(2 if opt["two_stage"] else 0), out_channels=opt["classes"], channels=(64, 128, 256, 512, 1024), strides=(2, 2, 2, 2))
 
     elif opt["model_name"] == "R2UNet":
-        model = R2U_Net(in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), out_channels=opt["classes"])
+        model = R2U_Net(in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), out_channels=opt["classes"])
 
     elif opt["model_name"] == "R2AttentionUNet":
-        model = R2AttentionU_Net(in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), out_channels=opt["classes"])
+        model = R2AttentionU_Net(in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), out_channels=opt["classes"])
 
     elif opt["model_name"] == "HighResNet3D":
-        model = HighResNet3D(in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), classes=opt["classes"])
+        model = HighResNet3D(in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), classes=opt["classes"])
 
     elif opt["model_name"] == "DenseVoxelNet":
-        model = DenseVoxelNet(in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
+        model = DenseVoxelNet(in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
 
     elif opt["model_name"] == "MultiResUNet3D":
-        model = MultiResUNet3D(in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
+        model = MultiResUNet3D(in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
 
     elif opt["model_name"] == "DenseASPPUNet":
-        model = DenseASPPUNet(in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), classes=opt["classes"])
+        model = DenseASPPUNet(in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), classes=opt["classes"])
 
     elif opt["model_name"] == "UNETR":
         model = UNETR(
-            in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0),
+            in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0),
             out_channels=opt["classes"],
             img_size=(160, 160, 96),
             feature_size=16,
@@ -85,7 +85,7 @@ def get_model_optimizer_lr_scheduler(opt):
     elif opt["model_name"] == "SwinUNETR":
         model = SwinUNETR(
             img_size=(160, 160, 96),
-            in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0),
+            in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0),
             out_channels=opt["classes"],
             feature_size=48,
             use_checkpoint=False,
@@ -93,7 +93,7 @@ def get_model_optimizer_lr_scheduler(opt):
         )
 
     elif opt["model_name"] == "TransBTS":
-        model = BTS(img_dim=(160, 160, 96), patch_dim=8, num_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), num_classes=opt["classes"],
+        model = BTS(img_dim=(160, 160, 96), patch_dim=8, num_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), num_classes=opt["classes"],
                     embedding_dim=512,
                     num_heads=8,
                     num_layers=4,
@@ -106,11 +106,11 @@ def get_model_optimizer_lr_scheduler(opt):
                     )
 
     elif opt["model_name"] == "nnFormer":
-        model = nnFormer(crop_size=(160, 160, 96), input_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), num_classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
+        model = nnFormer(crop_size=(160, 160, 96), input_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), num_classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
 
     elif opt["model_name"] == "3DUXNet":
         model = UXNET(
-            in_chans=opt["in_channels"] + (34 if opt["two_stage"] else 0),
+            in_chans=opt["in_channels"] + (2 if opt["two_stage"] else 0),
             out_chans=opt["classes"],
             depths=[2, 2, 2, 2],
             feat_size=[48, 96, 192, 384],
@@ -121,7 +121,7 @@ def get_model_optimizer_lr_scheduler(opt):
         )
 
     elif opt["model_name"] == "PMFSNet":
-        model = PMFSNet(in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), out_channels=opt["classes"], dim="3d", scaling_version="TINY", with_pmfs_block=opt["with_pmfs_block"])
+        model = PMFSNet(in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), out_channels=opt["classes"], dim="3d", scaling_version="TINY", with_pmfs_block=opt["with_pmfs_block"])
 
     else:
         raise RuntimeError(f"{opt['model_name']}是不支持的网络模型！")
@@ -198,39 +198,39 @@ def get_model_optimizer_lr_scheduler(opt):
 def get_model(opt):
     # 初始化网络模型
     if opt["model_name"] == "DenseVNet":
-        model = DenseVNet(in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
+        model = DenseVNet(in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
 
     elif opt["model_name"] == "UNet3D":
-        model = UNet3D(opt["in_channels"] + (34 if opt["two_stage"] else 0), opt["classes"], final_sigmoid=False, with_pmfs_block=opt["with_pmfs_block"])
+        model = UNet3D(opt["in_channels"] + (2 if opt["two_stage"] else 0), opt["classes"], final_sigmoid=False, with_pmfs_block=opt["with_pmfs_block"])
 
     elif opt["model_name"] == "VNet":
-        model = VNet(in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
+        model = VNet(in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
 
     elif opt["model_name"] == "AttentionUNet3D":
-        model = AttentionUNet3D(spatial_dims=3, in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), out_channels=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
-        # model = AttentionUnet(spatial_dims=3, in_channels=opt["in_channels"]+(34 if opt["two_stage"] else 0), out_channels=opt["classes"], channels=(64, 128, 256, 512, 1024), strides=(2, 2, 2, 2))
+        model = AttentionUNet3D(spatial_dims=3, in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), out_channels=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
+        # model = AttentionUnet(spatial_dims=3, in_channels=opt["in_channels"]+(2 if opt["two_stage"] else 0), out_channels=opt["classes"], channels=(64, 128, 256, 512, 1024), strides=(2, 2, 2, 2))
 
     elif opt["model_name"] == "R2UNet":
-        model = R2U_Net(in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), out_channels=opt["classes"])
+        model = R2U_Net(in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), out_channels=opt["classes"])
 
     elif opt["model_name"] == "R2AttentionUNet":
-        model = R2AttentionU_Net(in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), out_channels=opt["classes"])
+        model = R2AttentionU_Net(in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), out_channels=opt["classes"])
 
     elif opt["model_name"] == "HighResNet3D":
-        model = HighResNet3D(in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), classes=opt["classes"])
+        model = HighResNet3D(in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), classes=opt["classes"])
 
     elif opt["model_name"] == "DenseVoxelNet":
-        model = DenseVoxelNet(in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
+        model = DenseVoxelNet(in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
 
     elif opt["model_name"] == "MultiResUNet3D":
-        model = MultiResUNet3D(in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
+        model = MultiResUNet3D(in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
 
     elif opt["model_name"] == "DenseASPPUNet":
-        model = DenseASPPUNet(in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), classes=opt["classes"])
+        model = DenseASPPUNet(in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), classes=opt["classes"])
 
     elif opt["model_name"] == "UNETR":
         model = UNETR(
-            in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0),
+            in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0),
             out_channels=opt["classes"],
             img_size=(160, 160, 96),
             feature_size=16,
@@ -247,7 +247,7 @@ def get_model(opt):
     elif opt["model_name"] == "SwinUNETR":
         model = SwinUNETR(
             img_size=(160, 160, 96),
-            in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0),
+            in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0),
             out_channels=opt["classes"],
             feature_size=48,
             use_checkpoint=False,
@@ -255,7 +255,7 @@ def get_model(opt):
         )
 
     elif opt["model_name"] == "TransBTS":
-        model = BTS(img_dim=(160, 160, 96), patch_dim=8, num_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), num_classes=opt["classes"],
+        model = BTS(img_dim=(160, 160, 96), patch_dim=8, num_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), num_classes=opt["classes"],
                     embedding_dim=512,
                     num_heads=8,
                     num_layers=4,
@@ -268,11 +268,11 @@ def get_model(opt):
                     )
 
     elif opt["model_name"] == "nnFormer":
-        model = nnFormer(crop_size=(160, 160, 96), input_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), num_classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
+        model = nnFormer(crop_size=(160, 160, 96), input_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), num_classes=opt["classes"], with_pmfs_block=opt["with_pmfs_block"])
 
     elif opt["model_name"] == "3DUXNet":
         model = UXNET(
-            in_chans=opt["in_channels"] + (34 if opt["two_stage"] else 0),
+            in_chans=opt["in_channels"] + (2 if opt["two_stage"] else 0),
             out_chans=opt["classes"],
             depths=[2, 2, 2, 2],
             feat_size=[48, 96, 192, 384],
@@ -283,7 +283,7 @@ def get_model(opt):
         )
 
     elif opt["model_name"] == "PMFSNet":
-        model = PMFSNet(in_channels=opt["in_channels"] + (34 if opt["two_stage"] else 0), out_channels=opt["classes"], dim="3d", scaling_version="TINY", with_pmfs_block=opt["with_pmfs_block"])
+        model = PMFSNet(in_channels=opt["in_channels"] + (2 if opt["two_stage"] else 0), out_channels=opt["classes"], dim="3d", scaling_version="TINY", with_pmfs_block=opt["with_pmfs_block"])
 
     else:
         raise RuntimeError(f"{opt['model_name']}是不支持的网络模型！")
