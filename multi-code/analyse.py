@@ -785,6 +785,19 @@ def show_dataset_spacing_resolution(root_dir):
         print(image.shape, spacing)
 
 
+def show_surface_labels(root_dir):
+    for label_name in os.listdir(root_dir):
+        label_path = os.path.join(root_dir, label_name)
+        # 读取nii对象
+        NiiImage = sitk.ReadImage(label_path)
+        # 从nii对象中获取numpy格式的数组，[z, y, x]
+        image_numpy = sitk.GetArrayFromImage(NiiImage)
+        # 转换维度为 [x, y, z]
+        label_np = image_numpy.transpose(2, 1, 0)
+        print(np.unique(label_np))
+        OrthoSlicer3D(label_np).show()
+
+
 if __name__ == '__main__':
     # load_nii_file(r"./datasets/NC-release-data-full/valid/labels/Teeth_0011_0000.nii.gz")
 
@@ -809,7 +822,7 @@ if __name__ == '__main__':
     # compare_Dice()
 
     # 生成牙齿数据集的样本展示图
-    generate_samples_image(scale=1)
+    # generate_samples_image(scale=1)
 
     # 生成分割后拼接图
     # generate_segmented_sample_image(scale=1)
@@ -831,3 +844,6 @@ if __name__ == '__main__':
 
     # 打印数据集原始体素间距和分辨率
     # show_dataset_spacing_resolution(r"./datasets/HX-multi-class-10")
+
+    # 展示生成的表面轮廓标注
+    show_surface_labels(r"./datasets/HX-multi-class-10/surface_labels")

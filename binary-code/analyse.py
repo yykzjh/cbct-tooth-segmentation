@@ -714,6 +714,48 @@ def show_valid_set(root_dir):
         print(label_name, ": ", label_np.shape)
 
 
+def show_single_image(image_path, slice_index=0):
+    label_path = image_path.replace("images", "labels")
+    surface_label_path = image_path.replace("images", "surface_labels")
+    image_np = utils.load_image_or_label(image_path, [0.5, 0.5, 0.5], type="image")
+    label_np = utils.load_image_or_label(label_path, [0.5, 0.5, 0.5], type="label")
+    surface_label_np = utils.load_image_or_label(surface_label_path, [0.5, 0.5, 0.5], type="label")
+    image_np_2d = image_np[:, :, slice_index].transpose()
+    label_np_2d = label_np[:, :, slice_index].transpose()
+    surface_label_np_2d = surface_label_np[:, :, slice_index].transpose()
+    # 裁剪ROI
+    h, w = label_np_2d.shape
+    y_points, x_points = np.nonzero(label_np_2d)
+    x_min, x_max, y_min, y_max = x_points.min(), x_points.max(), y_points.min(), y_points.max()
+    image_np_2d = image_np_2d[max(0, y_min - 10):min(h, y_max + 11), max(0, x_min - 10):min(w, x_max + 11)]
+    label_np_2d = label_np_2d[max(0, y_min - 10):min(h, y_max + 11), max(0, x_min - 10):min(w, x_max + 11)]
+    surface_label_np_2d = surface_label_np_2d[max(0, y_min - 10):min(h, y_max + 11), max(0, x_min - 10):min(w, x_max + 11)]
+    # 转换格式
+    image_np_2d = (image_np_2d - image_np_2d.min()) / (image_np_2d.max() - image_np_2d.min())
+    image_np_2d *= 255
+    image_np_2d = image_np_2d.astype(np.uint8)
+    label_np_2d = (label_np_2d - label_np_2d.min()) / (label_np_2d.max() - label_np_2d.min())
+    label_np_2d *= 255
+    label_np_2d = label_np_2d.astype(np.uint8)
+    surface_label_np_2d = (surface_label_np_2d - surface_label_np_2d.min()) / (surface_label_np_2d.max() - surface_label_np_2d.min())
+    surface_label_np_2d *= 255
+    surface_label_np_2d = surface_label_np_2d.astype(np.uint8)
+    # 展示
+    plt.imshow(image_np_2d, cmap="gray")
+    plt.show()
+    plt.imshow(label_np_2d, cmap="gray")
+    plt.show()
+    plt.imshow(surface_label_np_2d, cmap="gray")
+    plt.show()
+    # 保存
+    image_img = Image.fromarray(image_np_2d)
+    image_img.save(r"./images/two_stage_pictures/origin_image.jpg")
+    label_img = Image.fromarray(label_np_2d)
+    label_img.save(r"./images/two_stage_pictures/label.jpg")
+    surface_label_img = Image.fromarray(surface_label_np_2d)
+    surface_label_img.save(r"./images/two_stage_pictures/surface_label.jpg")
+
+
 if __name__ == '__main__':
     # load_nii_file(r"./datasets/NC-release-data-full/train/images/1001484858_20150118.nii.gz")
 
@@ -756,4 +798,7 @@ if __name__ == '__main__':
     # generate_surface_labels(r"./datasets/NC-release-data-full/valid")
 
     # 打印验证集所有图像尺寸
-    show_valid_set(r"./datasets/NC-release-data-full/valid")
+    # show_valid_set(r"./datasets/NC-release-data-full/valid")
+
+    # 展示某张图像的原始图像、边缘图像、标注图像
+    show_single_image(r"./datasets/NC-release-data-full/train/images/1000889125_20200421.nii.gz", slice_index=100)
