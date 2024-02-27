@@ -53,7 +53,8 @@ class TwoStageNet(nn.Module):
         surface_logits = nn.Softmax(dim=1)(surface_pred)
         surface_x = torch.argmax(surface_logits, dim=1, keepdim=True)
         centroid_logits = nn.Sigmoid()(centroid_pred)
-        centroid_logits[:, 0, :, :, :] = self.opt["centroid_threshold"]
+        bs, c, h, w, d = centroid_logits.size()
+        centroid_logits = torch.cat([torch.full((bs, 1, h, w, d), self.opt["centroid_threshold"])], dim=1)
         centroid_x = torch.argmax(centroid_logits, dim=1, keepdim=True)
         merge_x = torch.cat([surface_x, centroid_x, x], dim=1)
 
