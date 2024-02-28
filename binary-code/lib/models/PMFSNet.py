@@ -73,7 +73,7 @@ class PMFSNet(nn.Module):
             )
 
         self.with_pmfs_block = with_pmfs_block
-        if with_pmfs_block:
+        if self.with_pmfs_block:
             self.Global = global_module(
                 in_channels=downsample_channels,
                 max_pool_kernels=[4, 2, 1],
@@ -105,15 +105,16 @@ class PMFSNet(nn.Module):
                                          skip=False,
                                          dim=dim)
         else:
-            self.bottle_conv = ConvBlock(
-                in_channel=downsample_channels[2] + skip_channels[2],
-                out_channel=skip_channels[2],
-                kernel_size=3,
-                stride=1,
-                batch_norm=True,
-                preactivation=True,
-                dim=dim
-            )
+            if self.with_pmfs_block:
+                self.bottle_conv = ConvBlock(
+                    in_channel=downsample_channels[2] + skip_channels[2],
+                    out_channel=skip_channels[2],
+                    kernel_size=3,
+                    stride=1,
+                    batch_norm=True,
+                    preactivation=True,
+                    dim=dim
+                )
 
             self.upsample_1 = torch.nn.Upsample(scale_factor=2, mode=upsample_mode)
             self.upsample_2 = torch.nn.Upsample(scale_factor=4, mode=upsample_mode)
