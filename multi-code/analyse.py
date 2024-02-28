@@ -798,6 +798,75 @@ def show_surface_labels(root_dir):
         OrthoSlicer3D(label_np).show()
 
 
+def show_single_image(image_name, slice_index=0):
+    # 初始化路径
+    root_dir = r"./datasets/HX-multi-class-10"
+    image_path = os.path.join(root_dir, "images", image_name + ".nrrd")
+    label_path = os.path.join(root_dir, "labels", image_name + ".nrrd")
+    surface_label_path = os.path.join(root_dir, "surface_labels", image_name + ".nii.gz")
+    centroid_label_path = os.path.join(root_dir, "centroid_labels", image_name + ".txt")
+    # 读取
+    image_np = utils.load_image_or_label(image_path, [0.5, 0.5, 0.5], type="image", index_to_class_dict=index_to_class_dict)
+    label_np = utils.load_image_or_label(label_path, [0.5, 0.5, 0.5], type="label", index_to_class_dict=index_to_class_dict)
+    surface_label_np = utils.load_image_or_label(surface_label_path, [0.5, 0.5, 0.5], type="surface_label", index_to_class_dict=index_to_class_dict)
+    centroid_label_np = utils.load_image_or_label(centroid_label_path, [0.5, 0.5, 0.5], type="centroid_label", index_to_class_dict=index_to_class_dict)
+    h, w, d = label_np.shape
+    centroid_label_np = np.concatenate([np.full((1, h, w, d), fill_value=0.15), centroid_label_np], axis=0)
+    centroid_label_np = np.argmax(centroid_label_np, axis=0)
+    print(image_np.shape)
+    print(label_np.shape)
+    print(surface_label_np.shape)
+    print(centroid_label_np.shape)
+    print(np.unique(image_np))
+    print(np.unique(label_np))
+    print(np.unique(surface_label_np))
+    print(np.unique(centroid_label_np))
+    # 获取二维切片
+    image_np_2d = image_np[:, :, slice_index].transpose()
+    label_np_2d = label_np[:, :, slice_index].transpose()
+    surface_label_np_2d = surface_label_np[:, :, slice_index].transpose()
+    centroid_label_np_2d = centroid_label_np[:, :, slice_index]
+    # 裁剪ROI
+    h, w = label_np_2d.shape
+    y_points, x_points = np.nonzero(label_np_2d)
+    x_min, x_max, y_min, y_max = x_points.min(), x_points.max(), y_points.min(), y_points.max()
+    image_np_2d = image_np_2d[max(0, y_min - 10):min(h, y_max + 11), max(0, x_min - 10):min(w, x_max + 11)]
+    label_np_2d = label_np_2d[max(0, y_min - 10):min(h, y_max + 11), max(0, x_min - 10):min(w, x_max + 11)]
+    surface_label_np_2d = surface_label_np_2d[max(0, y_min - 10):min(h, y_max + 11), max(0, x_min - 10):min(w, x_max + 11)]
+    centroid_label_np_2d = centroid_label_np_2d[max(0, y_min - 10):min(h, y_max + 11), max(0, x_min - 10):min(w, x_max + 11)]
+    # 转换格式
+    image_np_2d = (image_np_2d - image_np_2d.min()) / (image_np_2d.max() - image_np_2d.min())
+    image_np_2d *= 255
+    image_np_2d = image_np_2d.astype(np.uint8)
+    label_np_2d = (label_np_2d - label_np_2d.min()) / (label_np_2d.max() - label_np_2d.min())
+    label_np_2d *= 255
+    label_np_2d = label_np_2d.astype(np.uint8)
+    surface_label_np_2d = (surface_label_np_2d - surface_label_np_2d.min()) / (surface_label_np_2d.max() - surface_label_np_2d.min())
+    surface_label_np_2d *= 255
+    surface_label_np_2d = surface_label_np_2d.astype(np.uint8)
+    centroid_label_np_2d = (centroid_label_np_2d - centroid_label_np_2d.min()) / (centroid_label_np_2d.max() - centroid_label_np_2d.min())
+    centroid_label_np_2d *= 255
+    centroid_label_np_2d = centroid_label_np_2d.astype(np.uint8)
+    # 展示
+    plt.imshow(image_np_2d, cmap="gray")
+    plt.show()
+    plt.imshow(label_np_2d, cmap="gray")
+    plt.show()
+    plt.imshow(surface_label_np_2d, cmap="gray")
+    plt.show()
+    plt.imshow(centroid_label_np_2d, cmap="gray")
+    plt.show()
+    # 保存
+    image_img = Image.fromarray(image_np_2d)
+    image_img.save(r"./images/two_stage_pictures/origin_image.jpg")
+    label_img = Image.fromarray(label_np_2d)
+    label_img.save(r"./images/two_stage_pictures/label.jpg")
+    surface_label_img = Image.fromarray(surface_label_np_2d)
+    surface_label_img.save(r"./images/two_stage_pictures/surface_label.jpg")
+    centroid_label_img = Image.fromarray(centroid_label_np_2d)
+    centroid_label_img.save(r"./images/two_stage_pictures/centroid_label.jpg")
+
+
 if __name__ == '__main__':
     # load_nii_file(r"./datasets/NC-release-data-full/valid/labels/Teeth_0011_0000.nii.gz")
 
@@ -846,4 +915,7 @@ if __name__ == '__main__':
     # show_dataset_spacing_resolution(r"./datasets/HX-multi-class-10")
 
     # 展示生成的表面轮廓标注
-    show_surface_labels(r"./datasets/HX-multi-class-10/surface_labels")
+    # show_surface_labels(r"./datasets/HX-multi-class-10/surface_labels")
+
+    # 展示某张图像的原始图像、边缘图像、标注图像
+    show_single_image("1_2", slice_index=20)
