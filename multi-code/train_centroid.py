@@ -54,7 +54,7 @@ params = {
 
     # ——————————————————————————————————————————————    数据增强    ——————————————————————————————————————————————————————
 
-    "augmentation_probability": 0.8,  # 每张图像做数据增强的概率
+    "augmentation_probability": 0.1,  # 每张图像做数据增强的概率
     "augmentation_method": "Compose",  # 数据增强的方式，可选["Compose", "Choice"]
 
     # 弹性形变参数
@@ -222,7 +222,7 @@ params = {
 
     "update_weight_freq": 32,  # 每多少个step更新一次网络权重，用于梯度累加
 
-    "terminal_show_freq": 128,  # 终端打印统计信息的频率,以step为单位
+    "terminal_show_freq": 512,  # 终端打印统计信息的频率,以step为单位
 
     "save_epoch_freq": 30,  # 每多少个epoch保存一次训练状态和模型参数
 
