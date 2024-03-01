@@ -295,4 +295,7 @@ def get_model(opt):
     if opt["two_stage"]:
         model = TwoStageNet(opt, model, in_channels=opt["in_channels"])
 
+    # 随机初始化模型参数
+    utils.init_weights(model, init_type="kaiming")
+
     return model
