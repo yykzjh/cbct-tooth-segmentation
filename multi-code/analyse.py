@@ -893,7 +893,7 @@ if __name__ == '__main__':
     # analyse_dataset(dataset_dir=r"./datasets/HX-multi-class-10", resample_spacing=[0.5, 0.5, 0.5], clip_lower_bound_ratio=1e-6, clip_upper_bound_ratio=1 - 1e-7, classes=35)
 
     # 统计所有网络模型的参数量
-    count_all_models_parameters(["PMFSNet", "UNet3D", "VNet", "DenseVNet", "AttentionUNet3D", "DenseVoxelNet", "MultiResUNet3D", "UNETR", "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
+    count_all_models_parameters(["PMFSNet", "UNet3D", "DenseVNet", "AttentionUNet3D", "DenseVoxelNet", "MultiResUNet3D", "UNETR", "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
 
     # 生成牙齿数据集快照
     # generate_NC_release_data_snapshot(r"./datasets")
