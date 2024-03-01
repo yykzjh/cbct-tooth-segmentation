@@ -192,7 +192,7 @@ params = {
 
     "update_weight_freq": 32,  # 每多少个step更新一次网络权重，用于梯度累加
 
-    "terminal_show_freq": 256,  # 终端打印统计信息的频率,以step为单位
+    "terminal_show_freq": 512,  # 终端打印统计信息的频率,以step为单位
 
     "save_epoch_freq": 30,  # 每多少个epoch保存一次训练状态和模型参数
 
