@@ -109,6 +109,8 @@ params = {
 
     "classes": 33,  # 模型最后输出的通道数,即类别总数
 
+    "scaling_version": "TINY",  # PMFSNet模型的缩放版本，可选["TINY", "SMALL", "BASIC"]
+
     "with_pmfs_block": False,  # 加不加PMFS模块
 
     "two_stage": False,  # 是否采用两阶段架构

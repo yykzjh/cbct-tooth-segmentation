@@ -121,7 +121,7 @@ def get_model_optimizer_lr_scheduler(opt):
         )
 
     elif opt["model_name"] == "PMFSNet":
-        model = PMFSNet(in_channels=opt["in_channels"] + (1 if opt["two_stage"] else 0), out_channels=opt["classes"], dim="3d", scaling_version="TINY", with_pmfs_block=opt["with_pmfs_block"])
+        model = PMFSNet(in_channels=opt["in_channels"] + (1 if opt["two_stage"] else 0), out_channels=opt["classes"], dim="3d", scaling_version=opt["scaling_version"], with_pmfs_block=opt["with_pmfs_block"])
 
     else:
         raise RuntimeError(f"{opt['model_name']}是不支持的网络模型！")
@@ -283,7 +283,7 @@ def get_model(opt):
         )
 
     elif opt["model_name"] == "PMFSNet":
-        model = PMFSNet(in_channels=opt["in_channels"] + (1 if opt["two_stage"] else 0), out_channels=opt["classes"], dim="3d", scaling_version="TINY", with_pmfs_block=opt["with_pmfs_block"])
+        model = PMFSNet(in_channels=opt["in_channels"] + (1 if opt["two_stage"] else 0), out_channels=opt["classes"], dim="3d", scaling_version=opt["scaling_version"], with_pmfs_block=opt["with_pmfs_block"])
 
     else:
         raise RuntimeError(f"{opt['model_name']}是不支持的网络模型！")
