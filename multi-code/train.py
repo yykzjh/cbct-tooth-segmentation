@@ -56,7 +56,7 @@ params = {
 
     # ——————————————————————————————————————————————    数据增强    ——————————————————————————————————————————————————————
 
-    "augmentation_probability": 0.8,  # 每张图像做数据增强的概率
+    "augmentation_probability": 0.3,  # 每张图像做数据增强的概率
     "augmentation_method": "Compose",  # 数据增强的方式，可选["Compose", "Choice"]
 
     # 弹性形变参数
@@ -166,9 +166,9 @@ params = {
 
     # ——————————————————————————————————————————————    优化器     ——————————————————————————————————————————————————————
 
-    "optimizer_name": "AdamW",  # 优化器名称，可选["SGD", "Adagrad", "RMSprop", "Adam", "AdamW", "Adamax", "Adadelta"]
+    "optimizer_name": "Adam",  # 优化器名称，可选["SGD", "Adagrad", "RMSprop", "Adam", "AdamW", "Adamax", "Adadelta"]
 
-    "learning_rate": 0.01,  # 学习率
+    "learning_rate": 0.0005,  # 学习率
 
     "weight_decay": 0.00005,  # 权重衰减系数,即更新网络参数时的L2正则化项的系数
 
