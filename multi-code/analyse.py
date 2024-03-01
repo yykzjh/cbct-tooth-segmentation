@@ -10,6 +10,7 @@ import os
 import glob
 import math
 import tqdm
+import time
 import shutil
 import random
 import cv2
@@ -366,30 +367,38 @@ def count_all_models_parameters(model_names_list):
     opt = {
         "in_channels": 1,
         "classes": 35,
-        "device": "cpu",
+        "device": "cuda:0",
+        "scaling_version": "TINY",
         "with_pmfs_block": False,
-        "two_stage": True,
-        "surface_pretrain": None,
-        "centroid_pretrain": None
+        "two_stage": False,
     }
     # 遍历统计各个模型参数量
     for model_name in model_names_list:
-        if model_name != "AttentionUNet3D":
-            continue
         # 获取当前模型
         opt["model_name"] = model_name
         model = models.get_model(opt)
 
         print("***************************************** model name: {} *****************************************".format(model_name))
 
-        print("params: {:.6f}M".format(count_parameters(model)))
-
-        input = torch.randn(1, 1, 160, 160, 96).to(opt["device"])
-        flops, params = profile(model, (input,))
-        print("flops: {:.6f}G, params: {:.6f}M".format(flops / 1e9, params / 1e6))
+        # print("params: {:.6f}M".format(count_parameters(model)))
+        #
+        # input = torch.randn(1, 1, 160, 160, 96).to(opt["device"])
+        # flops, params = profile(model, (input,))
+        # print("flops: {:.6f}G, params: {:.6f}M".format(flops / 1e9, params / 1e6))
 
         flops, params = get_model_complexity_info(model, (1, 160, 160, 96), as_strings=False, print_per_layer_stat=False)
         print("flops: {:.6f}G, params: {:.6f}M".format(flops / 1e9, params / 1e6))
+
+        x = torch.randn((1, opt["in_channels"], 160, 160, 96)).to(opt["device"])
+        tsum = 0
+        with torch.no_grad():
+            y = model(x)
+            for i in range(10):
+                t1 = time.time()
+                y = model(x)
+                t2 = time.time()
+                tsum += (t2 - t1) * 1000
+        print("推理过程平均用时{}ms".format(tsum / 10))
 
 
 def generate_NC_release_data_snapshot(root_dir, size=224):
@@ -881,8 +890,7 @@ if __name__ == '__main__':
     # analyse_dataset(dataset_dir=r"./datasets/HX-multi-class-10", resample_spacing=[0.5, 0.5, 0.5], clip_lower_bound_ratio=1e-6, clip_upper_bound_ratio=1 - 1e-7, classes=35)
 
     # 统计所有网络模型的参数量
-    # count_all_models_parameters(["DenseVNet", "UNet3D", "VNet", "AttentionUNet3D", "R2UNet", "R2AttentionUNet", "HighResNet3D", "DenseVoxelNet", "MultiResUNet3D", "DenseASPPUNet", "PMFSNet", "UNETR",
-    #                              "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
+    count_all_models_parameters(["PMFSNet", "UNet3D", "VNet", "DenseVNet", "AttentionUNet3D", "DenseVoxelNet", "MultiResUNet3D", "UNETR", "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
 
     # 生成牙齿数据集快照
     # generate_NC_release_data_snapshot(r"./datasets")
@@ -918,4 +926,4 @@ if __name__ == '__main__':
     # show_surface_labels(r"./datasets/HX-multi-class-10/surface_labels")
 
     # 展示某张图像的原始图像、边缘图像、标注图像
-    show_single_image("1_2", slice_index=20)
+    # show_single_image("1_2", slice_index=20)
