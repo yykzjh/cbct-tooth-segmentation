@@ -386,11 +386,13 @@ def count_all_models_parameters(model_names_list):
     # 先构造参数字典
     opt = {
         "in_channels": 1,
-        "classes": 2,
+        "classes": 35,
         "device": "cuda:0",
         "scaling_version": "TINY",
         "with_pmfs_block": False,
         "two_stage": False,
+        "surface_pretrain": None,
+        "centroid_pretrain": None
     }
     # 遍历统计各个模型参数量
     for model_name in model_names_list:
@@ -407,7 +409,7 @@ def count_all_models_parameters(model_names_list):
         # print("flops: {:.6f}G, params: {:.6f}M".format(flops / 1e9, params / 1e6))
 
         flops, params = get_model_complexity_info(model, (1, 160, 160, 96), as_strings=False, print_per_layer_stat=False)
-        print("flops: {:.6f}G, params: {:.6f}M".format(flops / 1e9, params / 1e6))
+        print("flops: {:.6f} G, params: {:.6f} M".format(flops / 1e9, params / 1e6))
 
         x = torch.randn((1, opt["in_channels"], 160, 160, 96)).to(opt["device"])
         tsum = 0
@@ -418,7 +420,7 @@ def count_all_models_parameters(model_names_list):
                 y = model(x)
                 t2 = time.time()
                 tsum += (t2 - t1) * 1000
-        print("推理过程平均用时{}ms".format(tsum / 10))
+        print("推理过程平均用时: {} ms".format(tsum / 10))
 
 
 def generate_NC_release_data_snapshot(root_dir, size=224):
