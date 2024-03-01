@@ -139,7 +139,7 @@ class res_block(nn.Module):
         res_x = self.res(x)
 
         main_x = self.main(x)
-        out = res_x.add(main_x)
+        out = res_x + main_x
         out = nn.ReLU(inplace=True)(out)
         out = self.bn(out)
         return out
@@ -179,7 +179,7 @@ class MultiResBlock(nn.Module):
         cbc = self.conv7x7(obo)
         all_t = torch.cat((sbs, obo, cbc), 1)
         all_t_b = self.batchnorm_1(all_t)
-        out = all_t_b.add(res)
+        out = all_t_b + res
         out = self.relu(out)
         out = self.batchnorm_2(out)
         return out
