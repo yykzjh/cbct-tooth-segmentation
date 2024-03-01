@@ -386,7 +386,7 @@ def count_all_models_parameters(model_names_list):
     # 先构造参数字典
     opt = {
         "in_channels": 1,
-        "classes": 35,
+        "classes": 2,
         "device": "cuda:0",
         "scaling_version": "TINY",
         "with_pmfs_block": False,

@@ -15,6 +15,7 @@ import torch
 import torch.nn as nn
 
 from .PMFSNet import PMFSNet
+import lib.utils as utils
 
 
 class TwoStageNet(nn.Module):
@@ -34,8 +35,8 @@ class TwoStageNet(nn.Module):
         self.in_channels = in_channels
 
         # 初始化第一阶段的模型
-        self.stage1_surface_model = PMFSNet(in_channels=self.in_channels, out_channels=35, dim="3d", scaling_version="TINY", with_pmfs_block=False)
-        self.stage1_centroid_model = PMFSNet(in_channels=self.in_channels, out_channels=33, dim="3d", scaling_version="TINY", with_pmfs_block=False)
+        self.stage1_surface_model = PMFSNet(in_channels=self.in_channels, out_channels=35, dim="3d", scaling_version="TINY", with_pmfs_block=False).to(self.opt["device"])
+        self.stage1_centroid_model = PMFSNet(in_channels=self.in_channels, out_channels=33, dim="3d", scaling_version="TINY", with_pmfs_block=False).to(self.opt["device"])
 
         # 加载第一阶段模型参数
         self.load()
@@ -64,6 +65,7 @@ class TwoStageNet(nn.Module):
     def load(self):
         if self.opt["surface_pretrain"] is None:
             print("一阶段表面轮廓预测模型的权重为None")
+            utils.init_weights(self.stage1_surface_model, init_type="kaiming")
         else:
             # 加载模型参数字典
             pretrain_state_dict = torch.load(self.opt["surface_pretrain"], map_location=lambda storage, loc: storage.cuda(self.opt["device"]))
@@ -83,6 +85,7 @@ class TwoStageNet(nn.Module):
 
         if self.opt["centroid_pretrain"] is None:
             print("一阶段几何中心预测模型的权重为None")
+            utils.init_weights(self.stage1_centroid_model, init_type="kaiming")
         else:
             # 加载模型参数字典
             pretrain_state_dict = torch.load(self.opt["centroid_pretrain"], map_location=lambda storage, loc: storage.cuda(self.opt["device"]))
@@ -99,4 +102,3 @@ class TwoStageNet(nn.Module):
             self.stage1_centroid_model.load_state_dict(model_state_dict, strict=True)
             # 输出权重参数加载率
             print("{:.2f}%的一阶段几何中心预测模型参数成功加载预训练权重".format(100 * load_count / len(model_state_dict)))
-
