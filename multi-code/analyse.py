@@ -372,7 +372,8 @@ def count_all_models_parameters(model_names_list):
         "with_pmfs_block": False,
         "two_stage": False,
         "surface_pretrain": None,
-        "centroid_pretrain": None
+        "centroid_pretrain": None,
+        "centroid_threshold": 0.6
     }
     # 遍历统计各个模型参数量
     for model_name in model_names_list:
