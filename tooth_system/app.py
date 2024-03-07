@@ -16,8 +16,8 @@ class ToothAnalysisSystem(object):
         self.bind_toggle_windows()
 
     def run(self):
-        # self.login_window.show()
-        self.main_window.show()
+        self.login_window.show()
+        # self.main_window.show()
 
     def login_submit(self):
         # 登录转主窗口

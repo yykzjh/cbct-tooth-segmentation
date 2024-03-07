@@ -120,6 +120,59 @@ class ConfigManageWidget(QWidget):
         self.slide_step_layout.addWidget(self.slide_step_spinbox)
         self.slide_step_layout.addStretch(100)
         self.viewer_layout.addWidget(self.slide_step_widget, stretch=1)
+        # 提交和重置按钮
+        self.btn_widget = QWidget()
+        self.btn_layout = QHBoxLayout(self.btn_widget)
+        self.btn_layout.addStretch(2)
+        # 添加提交按钮
+        self.submit_btn = QPushButton("提交")
+        self.submit_btn.setStyleSheet(
+            '''
+            QPushButton {
+                height:40px;
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #3b78e6, stop:1 #0f5fd7);
+                border-radius: 10px;
+                color: white;
+                font-size:24px;
+                font-weight: bold;
+                padding: 5px 15px;
+            }
+
+            QPushButton:hover {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #60a3f7, stop:1 #3b78e6);
+            }
+
+            QPushButton:pressed {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0f5fd7, stop:1 #3b78e6);
+            }
+            ''')
+        self.btn_layout.addWidget(self.submit_btn, stretch=1)
+        self.btn_layout.addStretch(2)
+        # 添加重置按钮
+        self.reset_btn = QPushButton("重置")
+        self.reset_btn.setStyleSheet(
+            '''
+            QPushButton {
+                height:40px;
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #3b78e6, stop:1 #0f5fd7);
+                border-radius: 10px;
+                color: white;
+                font-size:24px;
+                font-weight: bold;
+                padding: 5px 15px;
+            }
+
+            QPushButton:hover {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #60a3f7, stop:1 #3b78e6);
+            }
+
+            QPushButton:pressed {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0f5fd7, stop:1 #3b78e6);
+            }
+            ''')
+        self.btn_layout.addWidget(self.reset_btn, stretch=1)
+        self.btn_layout.addStretch(5)
+        self.viewer_layout.addWidget(self.btn_widget, stretch=1)
 
         # 部件主界面底部留白
         self.viewer_layout.addStretch(2)

@@ -18,6 +18,16 @@ class PhoneRetrievalWindow(QDialog, Ui_PhoneRetrievalWindow):
         super(QDialog, self).__init__(parent)
         # 渲染短信验证码修改密码界面
         self.setupUi(self)
+
+        # 临时添加提示文字
+        self.tip_phone_label.setText("18*******17")
+        self.tip_phone_label.setStyleSheet(
+            '''
+            color:red;
+            font-size:16px;
+            '''
+        )
+
         # 给发送验证码的按钮绑定事件处理函数
         self.send_code_btn.clicked.connect(self.send_code)
         # 初始化倒计时和定时器
