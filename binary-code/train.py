@@ -44,8 +44,8 @@ params = {
     "resample_spacing": [0.5, 0.5, 0.5],  # 重采样的体素间距。三个维度的值一般相等，可设为0.5(图像尺寸有[200,200,100]、[200,200,200]、
     # [160,160,160]),或者设为0.25(图像尺寸有[400,400,200]、[400,400,400]、[320,320,320])
 
-    "clip_lower_bound": -1436,  # clip的下边界数值
-    "clip_upper_bound": 17869,  # clip的上边界数值
+    "clip_lower_bound": -1412,  # clip的下边界数值
+    "clip_upper_bound": 17943,  # clip的上边界数值
 
     "samples_train": 2048,  # 作为实际的训练集采样的子卷数量，也就是在原训练集上随机裁剪的子图像数量
 
@@ -87,14 +87,14 @@ params = {
     "random_shift_max_percentage": 0.3,  # 在图像的三个维度(D,H,W)都进行随机位移，位移量的范围为(-0.3×(D、H、W),0.3×(D、H、W))
 
     # 标准化均值
-    "normalize_mean": 0.05192686292050685,
-    "normalize_std": 0.028678952497449627,
+    "normalize_mean": 0.05029342141696459,
+    "normalize_std": 0.028477091559295814,
 
     # —————————————————————————————————————————————    数据读取     ——————————————————————————————————————————————————————
 
     "dataset_name": "BINARY-TOOTH-FULL",  # 数据集名称， 可选["BINARY-TOOTH-FULL", "BINARY-TOOTH-SURFACE"]
 
-    "dataset_path": r"./datasets/NC-release-data-full",  # 数据集路径
+    "dataset_path": r"./datasets/NC-release-data-checked",  # 数据集路径
 
     "create_data": False,  # 是否重新分割子卷训练集
 
@@ -171,7 +171,7 @@ params = {
     "loss_function_name": "DiceLoss",  # 损失函数名称，可选["DiceLoss","CrossEntropyLoss","WeightedCrossEntropyLoss",
     # "MSELoss","SmoothL1Loss","L1Loss","WeightedSmoothL1Loss","BCEDiceLoss","BCEWithLogitsLoss"]
 
-    "class_weight": [0.006082026617935588, 0.9939179733820644],  # 各类别计算损失值的加权权重
+    "class_weight": [0.00551122, 0.99448878],  # 各类别计算损失值的加权权重
 
     "sigmoid_normalization": False,  # 对网络输出的各通道进行归一化的方式,True是对各元素进行sigmoid,False是对所有通道进行softmax
 
