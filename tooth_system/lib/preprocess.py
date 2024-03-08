@@ -251,7 +251,7 @@ def load_heatmap(path):
     # 解析几何中心并生成热力图
     for i in range(1, len(lines) - 1):
         positions = lines[i].split()
-        centroid_x, centroid_y, centroid_z = float(positions[0]), float(positions[1]), float(positions[2])
+        centroid_x, centroid_y, centroid_z = float(positions[1]), float(positions[0]), float(positions[2])
         if (centroid_x == 0) and (centroid_y == 0) and (centroid_z == 0):
             heatmaps.append(np.zeros((h, w, d)))
         else:

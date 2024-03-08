@@ -1,4 +1,5 @@
 import cv2
+import matplotlib.pyplot as plt
 import vtk
 import numpy as np
 from vtkmodules.util import numpy_support
@@ -95,12 +96,13 @@ index_to_color_dict = {
 
 def numpy_to_vtkImageData(np_array):
     # vtkImageData中的数据全部都平铺成了一维数组,所以此处使用ravel()函数进行平铺处理
-    depth_arr = numpy_support.numpy_to_vtk(np_array.ravel(), deep=1, array_type=vtk.VTK_SHORT)
+    depth_arr = numpy_support.numpy_to_vtk(np.ravel(np_array, order="F"), deep=1, array_type=vtk.VTK_SHORT)
     im_data = vtk.vtkImageData()
     # 设置meta信息
     im_data.SetDimensions(np_array.shape)
     im_data.SetSpacing([1, 1, 1])
     im_data.SetOrigin([0, 0, 0])
+    # im_data.Set
     # 设置数据信息
     im_data.GetPointData().SetScalars(depth_arr)
     return im_data
@@ -126,6 +128,7 @@ def show_3D_image(image_np):
 
     # 转换数据格式
     vtk_image_data = numpy_to_vtkImageData(image_np)
+    print(vtk_image_data)
 
     # 初始化数值和不透明度的映射关系
     opacity_trans_func = vtk.vtkPiecewiseFunction()
@@ -162,14 +165,30 @@ def show_3D_image(image_np):
 
     # 设置建图的依赖关系
     volume = vtk.vtkVolume()
+
+    # volume.SetPosition(99.5, 99.5, 49.5)
+    volume.SetScale(1, 1, 1)
+    # volume.SetCoordinateSystemToWorld()
+    # volume.SetOrigin(49.75, 49.75, 24.75)
+
     volume.SetMapper(mapper)
     volume.SetProperty(volume_prop)
 
     camera = render.GetActiveCamera()
     c = volume.GetCenter()
     camera.SetFocalPoint(c[0], c[1], c[2])
-    camera.SetPosition(c[0] + 400, c[1], c[2])
-    camera.SetViewUp(0, 0, -1)
+    camera.SetPosition(c[0], c[1] - 500, c[2])
+    camera.SetViewUp(0, 0, 1)
+
+    # 创建一个世界坐标系的表示
+    axes = vtk.vtkAxesActor()
+    axes.SetTotalLength(*image_np.shape)
+    # 设置坐标轴的标签
+    axes.SetXAxisLabelText("X")
+    axes.SetYAxisLabelText("Y")
+    axes.SetZAxisLabelText("Z")
+    # 将坐标系添加到渲染器中
+    render.AddActor(axes)
 
     # 将建好的图进行渲染
     render.AddViewProp(volume)
@@ -185,4 +204,7 @@ def show_3D_image(image_np):
 
 if __name__ == '__main__':
     label_np = load_image_or_label(r"./images/label_12_2.nrrd", [0.5, 0.5, 0.5], type="label", index_to_class_dict=index_to_class_dict)
+    print(label_np.shape)
+    plt.imshow(label_np[:, :, 50], cmap="gray")
+    plt.show()
     show_3D_image(label_np)

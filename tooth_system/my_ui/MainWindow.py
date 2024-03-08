@@ -233,11 +233,11 @@ class MainWindow(QMainWindow):
 
     def numpy_to_vtkImageData(self, np_array):
         # vtkImageData中的数据全部都平铺成了一维数组,所以此处使用ravel()函数进行平铺处理
-        depth_arr = numpy_support.numpy_to_vtk(np_array.ravel(), deep=True, array_type=vtk.VTK_DOUBLE)
+        depth_arr = numpy_support.numpy_to_vtk(np.ravel(np_array, order="F"), deep=1, array_type=vtk.VTK_DOUBLE)
         im_data = vtk.vtkImageData()
         # 设置meta信息
         im_data.SetDimensions(np_array.shape)
-        im_data.SetSpacing([0.5, 0.5, 0.5])
+        im_data.SetSpacing([1, 1, 1])
         im_data.SetOrigin([0, 0, 0])
         # 设置数据信息
         im_data.GetPointData().SetScalars(depth_arr)
@@ -261,34 +261,38 @@ class MainWindow(QMainWindow):
         render = vtk.vtkRenderer()  # 初始化渲染器
         tab.viewer_widget.GetRenderWindow().AddRenderer(render)  # 将渲染窗口添加到渲染窗口交互器中
 
+        # 设置体积目标的属性
+        volume_prop = vtk.vtkVolumeProperty()
+        volume_prop.ShadeOn()
+        volume_prop.SetInterpolationTypeToLinear()
+        volume_prop.SetAmbient(0.4)
+        volume_prop.SetDiffuse(0.6)
+        volume_prop.SetSpecular(0.2)
+
         # 初始化数值和不透明度的映射关系
         opacity_trans_func = vtk.vtkPiecewiseFunction()
         for label_value, op_value in opacity_dict.items():
             opacity_trans_func.AddPoint(label_value, op_value)
+        volume_prop.SetScalarOpacity(opacity_trans_func)
 
         # 初始化数值和颜色的映射关系
         color_trans_func = vtk.vtkColorTransferFunction()
         for label_value, color in color_dict.items():
             color_trans_func.AddRGBPoint(label_value, color[0], color[1], color[2])
-
-        # # 设置梯度不透明度
-        # volumeGradientOpacity = vtk.vtkPiecewiseFunction()
-        # volumeGradientOpacity.AddPoint(0, 0.0)
-        # volumeGradientOpacity.AddPoint(90, 0.5)
-        # volumeGradientOpacity.AddPoint(100, 1.0)
-
-        # vtkPolyDataMapper()
-
-        # 设置体积目标的属性
-        volume_prop = vtk.vtkVolumeProperty()
         volume_prop.SetColor(color_trans_func)
-        volume_prop.SetScalarOpacity(opacity_trans_func)
-        # volume_prop.SetGradientOpacity(volumeGradientOpacity)
-        volume_prop.ShadeOn()
-        volume_prop.SetInterpolationTypeToLinear()
-        # volume_prop.SetAmbient(0.4)
-        # volume_prop.SetDiffuse(0.6)
-        # volume_prop.SetSpecular(0.2)
+
+        volumeCompositeOpacity = vtk.vtkPiecewiseFunction()
+        volumeCompositeOpacity.AddPoint(50, 0.15)
+        volumeCompositeOpacity.AddPoint(120, 0.6)
+        volumeCompositeOpacity.AddPoint(200, 1.0)
+        volume_prop.SetGradientOpacity(volumeCompositeOpacity)
+
+        # 设置梯度不透明度
+        volumeGradientOpacity = vtk.vtkPiecewiseFunction()
+        volumeGradientOpacity.AddPoint(1, 0.15)
+        volumeGradientOpacity.AddPoint(70, 0.6)
+        volumeGradientOpacity.AddPoint(130, 1.0)
+        volume_prop.SetGradientOpacity(volumeGradientOpacity)
 
         # 用图像数据建图
         mapper = vtk.vtkGPUVolumeRayCastMapper()
@@ -300,11 +304,22 @@ class MainWindow(QMainWindow):
         volume.SetMapper(mapper)
         volume.SetProperty(volume_prop)
 
+        # 设置摄像头位置
         camera = render.GetActiveCamera()
         c = volume.GetCenter()
         camera.SetFocalPoint(c[0], c[1], c[2])
-        camera.SetPosition(c[0] + 400, c[1], c[2])
-        camera.SetViewUp(0, 0, -1)
+        camera.SetPosition(c[0]-200, c[1] - 500, c[2]+200)
+        camera.SetViewUp(0, 0, 1)
+
+        # 创建一个世界坐标系的表示
+        axes = vtk.vtkAxesActor()
+        axes.SetTotalLength(*image_np.shape)
+        # 设置坐标轴的标签
+        axes.SetXAxisLabelText("X")
+        axes.SetYAxisLabelText("Y")
+        axes.SetZAxisLabelText("Z")
+        # 将坐标系添加到渲染器中
+        render.AddActor(axes)
 
         # 将建好的图进行渲染
         render.AddViewProp(volume)
