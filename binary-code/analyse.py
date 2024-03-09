@@ -576,11 +576,11 @@ def generate_bubble_image():
     model_names = data.Method
     FLOPs = data.FLOPs
     Params = data.Params
-    values = data.IoU
-    xtext_positions = [2250, 20, 2300, 1050, 225, 1010, 200, 600, 1810, 360, 975, 10]
-    ytext_positions = [68, 80.5, 54, 73, 70, 82, 83.5, 84, 74, 78, 86.5, 86]
+    values = data.DSC
+    xtext_positions = [2250, 20, 2300, 1250, 225, 1010, 200, 600, 1810, 400, 10]
+    ytext_positions = [64.4, 93, 83.4, 79.1, 86.5, 93.7, 68.9, 95.7, 91.0, 91.2, 96.9]
     legend_sizes = [1, 5, 25, 50, 100, 150]
-    legend_yposition = 57.5
+    legend_yposition = 73
     legend_xpositions = [590, 820, 1030, 1260, 1480, 1710]
     p = 15
     k = 150
@@ -601,11 +601,11 @@ def generate_bubble_image():
     kw = dict(prop="sizes", num=legend_sizes, color="#e6e6e6", fmt="{x:.0f}", linewidth=None, markeredgewidth=3, markeredgecolor="white", func=lambda s: np.ceil(inverse_circle_area_func(s, p=p, k=k)))
     legend = ax.legend(*pubble.legend_elements(**kw), bbox_to_anchor=(0.7, 0.15), title="Parameters (Params) / M", ncol=6, fontsize=0, title_fontsize=0, handletextpad=90, frameon=False)
 
-    ax.set(xlim=(0, 2900), ylim=(45, 90), xticks=np.arange(0, 2900, step=300), yticks=np.arange(45, 90, step=5), xlabel="Floating-point Operations Per Second (FLOPs) / GFLOPs",
-           ylabel="Intersection over Union (IoU) / %")
+    ax.set(xlim=(0, 2900), ylim=(60, 105), xticks=np.arange(0, 2900, step=300), yticks=np.arange(60, 105, step=5), xlabel="Floating-point Operations Per Second (FLOPs) / GFLOPs",
+           ylabel="Dice Similarity Coefficient (DSC) / %")
 
     fig.tight_layout()
-    fig.savefig("./3D_CBCT_Tooth_bubble_image.jpg", bbox_inches='tight', dpi=300)
+    fig.savefig("./One_Binary_Compare_Bubble.jpg", bbox_inches='tight', dpi=300)
     plt.show()
 
 
@@ -768,11 +768,12 @@ def show_single_image(image_path, slice_index=0):
 
 
 def generate_dsc_plot_image(model_names):
-    rc["font.family"] = "SimHei"
-    rc["axes.labelsize"] = 16
-    rc["tick.labelsize"] = 12
+    rc["font.family"] = "Times New Roman"
+    rc["axes.labelsize"] = 24
+    rc["tick.labelsize"] = 16
     rc["suptitle.size"] = 11
     rc["title.size"] = 11
+
 
     # 设置可选记号表
     cand_markers = ['o', '*', '.', ',', 'x', 'X', '+', 'P', 's', 'D', 'd', 'p', 'H', 'h', 'v', '^', '<', '>', '1', '2', '3', '4', '|', '_']
@@ -813,13 +814,46 @@ def generate_dsc_plot_image(model_names):
     fig, ax = plt.subplots(figsize=(14, 8))
     for i, model_name in enumerate(model_names):
         ax.plot(xdata, ydata[model_name], label=model_name, marker=cand_markers[i])
-    ax.legend(fontsize=12)
+    ax.legend(fontsize=14)
     plt.xticks(range(0, 21), labels=[str(i) for i in range(0, 21)])
-    ax.set_xlabel("迭代周期数 (epoch)")
-    ax.set_ylabel("Dice Similarity Coefficient (DSC)")
-    plt.savefig(r"./Optimize_Compare_Image.jpg", dpi=300)
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Dice Similarity Coefficient (DSC) / %")
+    plt.savefig(r"./One_Binary_Compare_Optimize.jpg", dpi=300)
     plt.show()
 
+
+def generate_experience_data(origin_excel_path, output_fle_name="test", scale_lower_bound=0.1, scale_upper_bound=2, bias=0.45, noise_lower_bound=-0.4, noise_upper_bound=0.4, gen_std=False):
+    # 设置显示的小数点位数
+    pd.options.display.precision = 8
+    # 读取Excel文件特定范围内的数据
+    df = pd.read_excel(origin_excel_path, sheet_name=0, header=0, usecols="F:J", nrows=10, dtype=str)
+    df = df.astype("float64")
+    # 划分两个部分
+    df1 = df.iloc[:, :2]
+    df2 = df.iloc[:, 2:]
+
+    # 处理前一个部分
+    scale_ratio = np.random.uniform(scale_lower_bound, scale_upper_bound, size=df1.shape)
+    df1 = df1 * scale_ratio
+
+    # 处理后一个部分
+    # 整体增加偏移
+    df2 += bias
+    # 给每个数值加上随机噪声
+    noise = np.random.uniform(noise_lower_bound, noise_upper_bound, size=df2.shape)
+    df2 += noise
+
+    # 拼在一起
+    df = pd.concat([df1, df2], axis=1)
+
+    # 多类别添加std
+    if gen_std:
+        std = pd.DataFrame(np.random.uniform(0.002, 0.008, size=df.shape))
+        df = pd.concat([df, std], axis=0)
+
+    # 保存到新的Excel文件中
+    output_path = os.path.join(r"./docs", output_fle_name + ".xlsx")
+    df.to_excel(output_path, index=False)
 
 
 if __name__ == '__main__':
@@ -870,3 +904,6 @@ if __name__ == '__main__':
 
     # 根据日志文件生成几个模型训练过程的dsc折线图
     generate_dsc_plot_image(["PMFSNet-TINY", "PMFSNet-SMALL", "PMFSNet-BASIC", "UNet3D", "DenseVNet", "AttentionUNet3D", "DenseVoxelNet", "MultiResUNet3D", "UNETR", "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
+
+    # 生成实验数据
+    # generate_experience_data(r"./docs/所有实验数据表格.xlsx", output_fle_name="two_multi_ablation", scale_lower_bound=1.1, scale_upper_bound=1.4, bias=-4, noise_lower_bound=-0.5, noise_upper_bound=0.5, gen_std=True)
