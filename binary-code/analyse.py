@@ -29,7 +29,7 @@ from functools import reduce
 from nibabel.viewers import OrthoSlicer3D
 import SimpleITK as sitk
 from proplot import rc
-import matplotlib
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 import proplot as pplt
@@ -767,6 +767,61 @@ def show_single_image(image_path, slice_index=0):
     surface_label_img.save(r"./images/two_stage_pictures/surface_label.jpg")
 
 
+def generate_dsc_plot_image(model_names):
+    rc["font.family"] = "SimHei"
+    rc["axes.labelsize"] = 16
+    rc["tick.labelsize"] = 12
+    rc["suptitle.size"] = 11
+    rc["title.size"] = 11
+
+    # 设置可选记号表
+    cand_markers = ['o', '*', '.', ',', 'x', 'X', '+', 'P', 's', 'D', 'd', 'p', 'H', 'h', 'v', '^', '<', '>', '1', '2', '3', '4', '|', '_']
+    # 初始化数据存储
+    xdata = []
+    ydata = {}
+    # 遍历所有模型
+    for model_name in model_names:
+        # 获取日志文件路径
+        log_txt_path = os.path.join(r"./logs", model_name + ".txt")
+        # 初始化纵坐标
+        ydata[model_name] = [0]
+        # 打开日志文件
+        with open(log_txt_path, "r") as file:
+            line_num = 1
+            for line in file:
+                # 跳过epoch参数
+                if line_num % 9 != 0:
+                    line_num += 1
+                    continue
+                line_num += 1
+                line = line.strip()
+                if "valid_dsc:" in line:
+                    # 找到 "valid_dsc:" 的位置
+                    dsc_start = line.find("valid_dsc:")
+                    if dsc_start != -1:
+                        # 提取 "valid_dsc:" 后面的数字
+                        dsc_str = line[dsc_start + len("valid_dsc:"): dsc_start + len("valid_dsc:") + 8].strip()
+                        try:
+                            dsc_value = float(dsc_str)
+                            dsc_value = round(dsc_value * 100, 4)
+                            ydata[model_name].append(dsc_value)
+                        except ValueError:
+                            print("字符串转浮点数出错")
+    xdata = [i for i in range(len(ydata[model_names[0]]))]
+
+    # 画图
+    fig, ax = plt.subplots(figsize=(14, 8))
+    for i, model_name in enumerate(model_names):
+        ax.plot(xdata, ydata[model_name], label=model_name, marker=cand_markers[i])
+    ax.legend(fontsize=12)
+    plt.xticks(range(0, 21), labels=[str(i) for i in range(0, 21)])
+    ax.set_xlabel("迭代周期数 (epoch)")
+    ax.set_ylabel("Dice Similarity Coefficient (DSC)")
+    plt.savefig(r"./Optimize_Compare_Image.jpg", dpi=300)
+    plt.show()
+
+
+
 if __name__ == '__main__':
     # load_nii_file(r"./datasets/NC-release-data-full/train/images/1001484858_20150118.nii.gz")
 
@@ -781,7 +836,7 @@ if __name__ == '__main__':
     # analyse_dataset(dataset_dir=r"./datasets/NC-release-data-full", resample_spacing=[0.5, 0.5, 0.5], clip_lower_bound_ratio=1e-6, clip_upper_bound_ratio=1-1e-7)
 
     # 统计所有网络模型的参数量
-    count_all_models_parameters(["PMFSNet", "UNet3D", "DenseVNet", "AttentionUNet3D", "DenseVoxelNet", "MultiResUNet3D", "UNETR", "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
+    # count_all_models_parameters(["PMFSNet", "UNet3D", "DenseVNet", "AttentionUNet3D", "DenseVoxelNet", "MultiResUNet3D", "UNETR", "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
 
     # 生成牙齿数据集快照
     # generate_NC_release_data_snapshot(r"./datasets")
@@ -812,3 +867,6 @@ if __name__ == '__main__':
 
     # 展示某张图像的原始图像、边缘图像、标注图像
     # show_single_image(r"./datasets/NC-release-data-full/train/images/1000889125_20200421.nii.gz", slice_index=100)
+
+    # 根据日志文件生成几个模型训练过程的dsc折线图
+    generate_dsc_plot_image(["PMFSNet-TINY", "PMFSNet-SMALL", "PMFSNet-BASIC", "UNet3D", "DenseVNet", "AttentionUNet3D", "DenseVoxelNet", "MultiResUNet3D", "UNETR", "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
