@@ -521,23 +521,42 @@ def generate_samples_image(scale=2):
 
 
 def generate_segmented_sample_image(scale=1):
+    # 设置选择的图像编号
+    selected_images = [0, 2, 5]
+    # 设置几列
+    cols = 6
+    # 设置一些参数
+    span1 = 234
+    span2 = 330
+    span3 = 752
     # 创建整个大图
-    image = np.full((976, 4340, 3), 255)
+    image = np.full((1504, 1970, 3), 255)
     # 依次遍历
-    for i in range(4):
-        for j in range(13):
-            pos_x, pos_y = i * (224 + 10), j * (320 + 10) + 60
-            img = cv2.imread(r"./images/NC-release-data_segment_result_samples/" + str(i) + "_{:02d}".format(j) + ".jpg")
+    for i in range(3):
+        x_min, x_max, y_min, y_max = 0, 0, 0, 0
+        for j in range(12):
+            # 获取图像
+            img = cv2.imread(os.path.join(r"./images/NC-release-data_segment_result_samples", "{:04d}_{:02d}".format(selected_images[i], j) + ".jpg"))
+            # 旋转图像
             img = np.rot90(img, -1)
+            # 判断如果是ground truth，则计算裁剪区域
+            if j == 0:
+                h, w, _ = img.shape
+                y_points, x_points, _ = np.nonzero(img)
+                x_min, x_max, y_min, y_max = x_points.min(), x_points.max(), y_points.min(), y_points.max()
+            # 裁剪图像
+            img = img[max(0, y_min - 10):min(h, y_max + 11), max(0, x_min - 10):min(w, x_max + 11), :]
+            # 缩放图像
             img = cv2.resize(img, (320, 224))
-            image[pos_x: pos_x + 224, pos_y: pos_y + 320, :] = img
+            # 计算拼接位置
+            pos_y, pos_x = (j // cols) * span3 + i * span1, (j % cols) * span2
+            # 拼接
+            image[pos_y: pos_y + 224, pos_x: pos_x + 320, :] = img
     image = image[:, :, ::-1]
 
     # 添加文字的设置
-    col_names = ["Image", "Ground Truth", "UNet3D", "DenseVNet", "AttentionUNet3D", "DenseVoxelNet", "MultiResUNet3D", "UNETR", "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet", "PMFSNet"]
-    row_names = ["(a)", "(b)", "(c)", "(d)"]
-    col_positions = [170, 445, 820, 1125, 1410, 1755, 2075, 2470, 2765, 3110, 3455, 3780, 4110]
-    row_positions = [100, 334, 568, 802]
+    col_names = ["Ground Truth", "UNet3D", "DenseVNet", "AttentionUNet3D", "DenseVoxelNet", "MultiResUNet3D", "UNETR", "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet", "PMFSNet"]
+    col_positions = [60, 430, 740, 1015, 1365, 1680, 90, 395, 745, 1080, 1405, 1745]
 
     image = Image.fromarray(np.uint8(image))
     draw = ImageDraw.Draw(image)
@@ -546,17 +565,15 @@ def generate_segmented_sample_image(scale=1):
 
     # 遍历添加文字
     for i, text in enumerate(col_names):
-        position = (col_positions[i], 931)
-        draw.text(position, text, font=font, fill=color)
-    for i, text in enumerate(row_names):
-        position = (5, row_positions[i])
-        draw.text(position, text, font=font, fill=color, stroke_width=1)
+        # 计算位置
+        position_x, position_y = col_positions[i], (i // cols) * span3 + 698
+        # 添加文字
+        draw.text((position_x, position_y), text, font=font, fill=color)
 
     image.show()
     w, h = image.size
     image = image.resize((scale * w, scale * h), resample=Image.Resampling.BILINEAR)
-    print(image.size)
-    image.save(r"./images/NC-release-data_segment_result_samples/3D_CBCT_Tooth_segmentation.jpg")
+    image.save(r"./One_Binary_Compare_Visualization.jpg")
 
 
 def generate_bubble_image():
@@ -774,7 +791,6 @@ def generate_dsc_plot_image(model_names):
     rc["suptitle.size"] = 11
     rc["title.size"] = 11
 
-
     # 设置可选记号表
     cand_markers = ['o', '*', '.', ',', 'x', 'X', '+', 'P', 's', 'D', 'd', 'p', 'H', 'h', 'v', '^', '<', '>', '1', '2', '3', '4', '|', '_']
     # 初始化数据存储
@@ -882,7 +898,7 @@ if __name__ == '__main__':
     # generate_samples_image(scale=1)
 
     # 生成分割后拼接图
-    # generate_segmented_sample_image(scale=1)
+    generate_segmented_sample_image(scale=1)
 
     # 生成气泡图
     # generate_bubble_image()
@@ -903,7 +919,7 @@ if __name__ == '__main__':
     # show_single_image(r"./datasets/NC-release-data-full/train/images/1000889125_20200421.nii.gz", slice_index=100)
 
     # 根据日志文件生成几个模型训练过程的dsc折线图
-    generate_dsc_plot_image(["PMFSNet-TINY", "PMFSNet-SMALL", "PMFSNet-BASIC", "UNet3D", "DenseVNet", "AttentionUNet3D", "DenseVoxelNet", "MultiResUNet3D", "UNETR", "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
+    # generate_dsc_plot_image(["PMFSNet-TINY", "PMFSNet-SMALL", "PMFSNet-BASIC", "UNet3D", "DenseVNet", "AttentionUNet3D", "DenseVoxelNet", "MultiResUNet3D", "UNETR", "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
 
     # 生成实验数据
     # generate_experience_data(r"./docs/所有实验数据表格.xlsx", output_fle_name="two_multi_ablation", scale_lower_bound=1.1, scale_upper_bound=1.4, bias=-4, noise_lower_bound=-0.5, noise_upper_bound=0.5, gen_std=True)
