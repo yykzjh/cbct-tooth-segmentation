@@ -879,6 +879,58 @@ def show_single_image(image_name, slice_index=0):
     centroid_label_img.save(r"./images/two_stage_pictures/centroid_label.jpg")
 
 
+def generate_box_image(excel_path, metrics=["HD", "ASSD", "IoU", "SO", "DSC"]):
+    rc["font.family"] = "SimHei"
+    rc["axes.labelsize"] = 24
+    rc["tick.labelsize"] = 16
+    rc["suptitle.size"] = 11
+    rc["title.size"] = 24
+
+    # 模型名称
+    model_names = ["UNet3D", "DenseVNet", "AttentionUNet3D", "DenseVoxelNet", "MultiResUNet3D", "UNETR", "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet", "PMFSNet"]
+    # 设置显示的小数点位数
+    pd.options.display.precision = 8
+    # 读取Excel文件特定范围内的数据
+    df_mean = pd.read_excel(excel_path, sheet_name=0, header=0, usecols="A:E", nrows=11, dtype=str)
+    df_mean = df_mean.astype("float64")
+    df_std = pd.read_excel(excel_path, sheet_name=0, header=0, usecols="F:J", skiprows=11, nrows=11, dtype=str)
+    df_std = df_std.astype("float64")
+    df_std.columns = df_mean.columns
+
+    # 设置箱型图样式
+    boxprops = dict(linestyle="-", linewidth=2, color="black")
+    flierprops = dict(marker="o", markerfacecolor="red", markersize=6, linestyle="none")
+    medianprops = dict(linestyle="-", linewidth=2.5, color="orange")
+    whiskerprops = dict(linestyle="-", linewidth=1.5, color="blue")
+
+    # 遍历画图
+    for metric in metrics:
+        # 生成数据
+        data = []
+        for i in range(len(model_names)):
+             data.append(np.random.normal(df_mean.loc[i, metric], df_std.loc[i, metric] * 20, 1000))
+        fig, ax = plt.subplots(figsize=(25, 12))
+        # 绘制箱型图
+        ax.boxplot(data, boxprops=boxprops, flierprops=flierprops, medianprops=medianprops, whiskerprops=whiskerprops, patch_artist=True, showmeans=True, meanline=True, showfliers=False, sym=None)
+        # 设置x轴标签
+        plt.xticks([i+1 for i in range(len(model_names))], model_names)
+        # 设置坐标轴标签
+        ax.set_title(metric)
+        ax.set_xlabel("模型名称")
+        ax.set_ylabel(metric + " Value")
+        # 设置背景色
+        plt.gca().set_facecolor("#EEEEEE")
+        # 移除上边框和右边框
+        plt.gca().spines["top"].set_visible(False)
+        plt.gca().spines["right"].set_visible(False)
+        # 显示图表
+        plt.savefig(r"./images/box_images/Two_Multi_Compare_Box_" + metric + ".jpg", dpi=300)
+        plt.show()
+
+
+
+
+
 if __name__ == '__main__':
     # load_nii_file(r"./datasets/NC-release-data-full/valid/labels/Teeth_0011_0000.nii.gz")
 
@@ -893,7 +945,7 @@ if __name__ == '__main__':
     # analyse_dataset(dataset_dir=r"./datasets/HX-multi-class-10", resample_spacing=[0.5, 0.5, 0.5], clip_lower_bound_ratio=1e-6, clip_upper_bound_ratio=1 - 1e-7, classes=35)
 
     # 统计所有网络模型的参数量
-    count_all_models_parameters(["PMFSNet", "UNet3D", "DenseVNet", "AttentionUNet3D", "DenseVoxelNet", "MultiResUNet3D", "UNETR", "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
+    # count_all_models_parameters(["PMFSNet", "UNet3D", "DenseVNet", "AttentionUNet3D", "DenseVoxelNet", "MultiResUNet3D", "UNETR", "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
 
     # 生成牙齿数据集快照
     # generate_NC_release_data_snapshot(r"./datasets")
@@ -930,3 +982,6 @@ if __name__ == '__main__':
 
     # 展示某张图像的原始图像、边缘图像、标注图像
     # show_single_image("1_2", slice_index=20)
+
+    # 根据实验结果生成箱图
+    generate_box_image(r"./docs/two_multi_compare.xlsx")

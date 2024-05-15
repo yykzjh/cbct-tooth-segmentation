@@ -522,7 +522,7 @@ def generate_samples_image(scale=2):
 
 def generate_segmented_sample_image(scale=1):
     # 设置选择的图像编号
-    selected_images = [0, 2, 5]
+    selected_images = [12, 21, 31]
     # 设置几列
     cols = 6
     # 设置一些参数
@@ -842,7 +842,7 @@ def generate_experience_data(origin_excel_path, output_fle_name="test", scale_lo
     # 设置显示的小数点位数
     pd.options.display.precision = 8
     # 读取Excel文件特定范围内的数据
-    df = pd.read_excel(origin_excel_path, sheet_name=0, header=0, usecols="F:J", nrows=10, dtype=str)
+    df = pd.read_excel(origin_excel_path, sheet_name=0, header=0, usecols="F:J", nrows=11, dtype=str)
     df = df.astype("float64")
     # 划分两个部分
     df1 = df.iloc[:, :2]
@@ -872,6 +872,50 @@ def generate_experience_data(origin_excel_path, output_fle_name="test", scale_lo
     df.to_excel(output_path, index=False)
 
 
+
+def quantize_models(model_names):
+    # 参数字典
+    opt = {
+        "in_channels": 1,
+        "classes": 2,
+        "device": "cuda:0",
+        "scaling_version": "TINY",
+        "with_pmfs_block": False,
+        "two_stage": False,
+        "surface_pretrain": None,
+        "centroid_pretrain": None
+    }
+
+    for model_name in model_names:
+        print(model_name)
+        # 一些参数
+        input_size = (160, 160, 96)
+        onnx_dir = r"./weights/onnx"
+        split_model_name = model_name.split("-")
+        if len(split_model_name) == 2:
+            opt["model_name"] = split_model_name[0]
+            opt["scaling_version"] = split_model_name[1]
+            model = models.get_model(opt)
+        else:
+            opt["model_name"] = split_model_name[0]
+            model = models.get_model(opt)
+
+        dummy_input = torch.randn(1, 1, input_size[0], input_size[1], input_size[2]).to("cuda")
+        model.eval()
+        model(dummy_input)
+        im = torch.zeros(1, 1, input_size[0], input_size[1], input_size[2]).to("cuda")
+        torch.onnx.export(model, im,
+                          os.path.join(onnx_dir, model_name + ".onnx"),
+                          verbose=False,
+                          opset_version=12,
+                          training=torch.onnx.TrainingMode.EVAL,
+                          do_constant_folding=True,
+                          input_names=['input'],
+                          output_names=['output']
+                          )
+
+
+
 if __name__ == '__main__':
     # load_nii_file(r"./datasets/NC-release-data-full/train/images/1001484858_20150118.nii.gz")
 
@@ -898,7 +942,7 @@ if __name__ == '__main__':
     # generate_samples_image(scale=1)
 
     # 生成分割后拼接图
-    generate_segmented_sample_image(scale=1)
+    # generate_segmented_sample_image(scale=1)
 
     # 生成气泡图
     # generate_bubble_image()
@@ -923,3 +967,7 @@ if __name__ == '__main__':
 
     # 生成实验数据
     # generate_experience_data(r"./docs/所有实验数据表格.xlsx", output_fle_name="two_multi_ablation", scale_lower_bound=1.1, scale_upper_bound=1.4, bias=-4, noise_lower_bound=-0.5, noise_upper_bound=0.5, gen_std=True)
+
+    # 量化所有模型
+    quantize_models(["PMFSNet-TINY", "PMFSNet-SMALL", "PMFSNet-BASIC", "UNet3D", "DenseVNet", "AttentionUNet3D", "DenseVoxelNet", "MultiResUNet3D", "UNETR", "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet"])
+
