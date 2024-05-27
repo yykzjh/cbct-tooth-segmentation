@@ -525,13 +525,13 @@ def generate_segmented_sample_image(scale=1):
     # 设置选择的图像编号
     selected_images = [12, 21, 31]
     # 设置几列
-    cols = 6
+    cols = 4
     # 设置一些参数
     span1 = 234
     span2 = 330
     span3 = 752
     # 创建整个大图
-    image = np.full((1504, 1970, 3), 255)
+    image = np.full((2256, 1310, 3), 255)
     # 依次遍历
     for i in range(3):
         x_min, x_max, y_min, y_max = 0, 0, 0, 0
@@ -557,7 +557,7 @@ def generate_segmented_sample_image(scale=1):
 
     # 添加文字的设置
     col_names = ["Ground Truth", "UNet3D", "DenseVNet", "AttentionUNet3D", "DenseVoxelNet", "MultiResUNet3D", "UNETR", "SwinUNETR", "TransBTS", "nnFormer", "3DUXNet", "PMFSNet"]
-    col_positions = [60, 430, 740, 1015, 1365, 1680, 90, 395, 745, 1080, 1405, 1745]
+    col_positions = [60, 430, 735, 1020, 40, 365, 760, 1055, 80, 420, 745, 1075]
 
     image = Image.fromarray(np.uint8(image))
     draw = ImageDraw.Draw(image)
@@ -1072,7 +1072,7 @@ if __name__ == '__main__':
     # generate_samples_image(scale=1)
 
     # 生成分割后拼接图
-    # generate_segmented_sample_image(scale=1)
+    generate_segmented_sample_image(scale=1)
 
     # 生成气泡图
     # generate_bubble_image()
@@ -1099,5 +1099,5 @@ if __name__ == '__main__':
     # generate_experience_data(r"./docs/所有实验数据表格.xlsx", output_fle_name="two_multi_ablation", scale_lower_bound=1.1, scale_upper_bound=1.4, bias=-4, noise_lower_bound=-0.5, noise_upper_bound=0.5, gen_std=True)
 
     # 量化所有模型
-    quantize_models(["PMFSNet-TINY", "PMFSNet-SMALL", "PMFSNet-BASIC", "UNet3D", "DenseVNet", "AttentionUNet3D", "DenseVoxelNet", "MultiResUNet3D", "UNETR"])
+    # quantize_models(["PMFSNet-TINY", "PMFSNet-SMALL", "PMFSNet-BASIC", "UNet3D", "DenseVNet", "AttentionUNet3D", "DenseVoxelNet", "MultiResUNet3D", "UNETR"])
 
